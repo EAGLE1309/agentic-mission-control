@@ -16,7 +16,7 @@ export type Availability = { banner: ReactNode; tone: BannerTone; blocked: boole
  * (serverError) shows at once, before the live data updates.
  */
 export function useMissionAvailability(serverError: AppErrorData | null): Availability {
-  const { quota, capacity } = useShellData();
+  const { quota, unlimited, capacity } = useShellData();
 
   const capacityReached = capacity?.level === "reached" || serverError?.code === "CAPACITY_EXHAUSTED";
   if (capacityReached) {
@@ -62,7 +62,11 @@ export function useMissionAvailability(serverError: AppErrorData | null): Availa
       <>
         <IconInfoCircle aria-hidden className="size-3.5 shrink-0" />
         <span className="tabular-nums">
-          {quota ? `${quota.left} of ${quota.max} missions left today.` : "Checking the missions left today…"}
+          {unlimited
+            ? "No daily mission limit on this deployment."
+            : quota
+              ? `${quota.left} of ${quota.max} missions left today.`
+              : "Checking the missions left today…"}
         </span>
         <Link href="/usage" className="ml-auto shrink-0 text-link underline-offset-2 hover:underline">
           View usage

@@ -47,7 +47,7 @@ export function toolCallStatusKind(status: ToolCallStatus): StatusKind {
     case "running":
       return "running";
     case "ok":
-      return "done";
+      return "ok";
     case "error":
       return "failed";
     case "cancelled":

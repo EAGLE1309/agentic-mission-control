@@ -8,9 +8,11 @@
  * @module
  */
 
+import type * as apps from "../apps.js";
 import type * as artifacts from "../artifacts.js";
 import type * as auth from "../auth.js";
 import type * as catalog from "../catalog.js";
+import type * as composio from "../composio.js";
 import type * as crons from "../crons.js";
 import type * as deliverables from "../deliverables.js";
 import type * as engine_assemble from "../engine/assemble.js";
@@ -38,6 +40,7 @@ import type * as engine_workflow from "../engine/workflow.js";
 import type * as events from "../events.js";
 import type * as http from "../http.js";
 import type * as inbox from "../inbox.js";
+import type * as integrations from "../integrations.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_stats from "../lib/stats.js";
 import type * as limits from "../limits.js";
@@ -53,9 +56,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  apps: typeof apps;
   artifacts: typeof artifacts;
   auth: typeof auth;
   catalog: typeof catalog;
+  composio: typeof composio;
   crons: typeof crons;
   deliverables: typeof deliverables;
   "engine/assemble": typeof engine_assemble;
@@ -83,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   http: typeof http;
   inbox: typeof inbox;
+  integrations: typeof integrations;
   "lib/auth": typeof lib_auth;
   "lib/stats": typeof lib_stats;
   limits: typeof limits;

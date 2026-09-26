@@ -46,6 +46,11 @@ export const STUCK_SWEEP_MINUTES = 5;
 
 // Events and artifacts (tech spec §3.1, §5.1, §9.1)
 export const PREVIEW_MAX_CHARS = 500;
+
+/** Result URLs that a tool_result carries, for favicons (design §6.4). */
+export const RESULT_URLS_MAX = 8;
+/** Favicons on one graph satellite: the newest sites of that tool. */
+export const SATELLITE_SITES_MAX = 3;
 export const ARTIFACT_MAX_CHARS = 200_000;
 export const EVENTS_PAGE_SIZE = 500;
 export const EVENTS_TAIL_LIMIT = 200;

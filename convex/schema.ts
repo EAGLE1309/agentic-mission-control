@@ -112,6 +112,18 @@ export default defineSchema({
     lastSeenAt: v.number(),
   }).index("by_modelId", ["modelId"]),
 
+  /**
+   * Third-party apps that a user connected through Composio (design §6.8).
+   * Composio holds the tokens and is the source of truth; composio.sync copies
+   * the active connections here, so the page is reactive.
+   */
+  appConnections: defineTable({
+    userId: v.string(),
+    toolkit: v.string(),
+    connectedAccountId: v.string(),
+    connectedAt: v.number(),
+  }).index("by_userId_and_toolkit", ["userId", "toolkit"]),
+
   /** Live thought text of each task. Not in the event log, so replay does not show it. */
   nodeLive: defineTable({
     missionId: v.id("missions"),

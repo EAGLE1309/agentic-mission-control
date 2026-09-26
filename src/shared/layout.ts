@@ -20,8 +20,9 @@ export const SATELLITE_INDENT = 24;
  * 8px padding, 14px icon, 6px gaps, the tool name in 12px mono, and the call
  * count (for example "×3"). The chip itself sizes to its content.
  */
-export function satelliteWidth(tool: ToolName, calls: number): number {
-  return Math.ceil(8 + 14 + 6 + tool.length * 7.8 + 6 + (1 + String(calls).length) * 7 + 8);
+export function satelliteWidth(tool: ToolName, calls: number, sites = 0): number {
+  const favicons = sites > 0 ? 6 + sites * 16 + (sites - 1) * 4 : 0;
+  return Math.ceil(8 + 14 + 6 + tool.length * 7.8 + 6 + (1 + String(calls).length) * 7 + favicons + 8);
 }
 
 const TOOL_ORDER: readonly ToolName[] = ["web_search", "fetch_url", "write_section"];

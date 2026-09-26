@@ -9,7 +9,7 @@ import { workflow } from "./engine/workflow";
 import { appendEventsTx } from "./events";
 import { getOwnedMission, requireUser } from "./lib/auth";
 import { addUserStats } from "./lib/stats";
-import { limits, nextUtcDay } from "./limits";
+import { MISSION_QUOTA_OFF, limits, nextUtcDay } from "./limits";
 import {
   ADMISSION_MIN_DAILY_CALLS,
   GOAL_MAX_CHARS,
@@ -46,8 +46,10 @@ export const create = mutation({
       const capacity = await limits.check(ctx, "openrouterDay", { count: ADMISSION_MIN_DAILY_CALLS });
       if (!capacity.ok) throw appError("CAPACITY_EXHAUSTED", { resetAt: nextUtcDay(Date.now()) });
     }
-    const quota = await limits.limit(ctx, "missionsPerUser", { key: user.userId });
-    if (!quota.ok) throw appError("QUOTA_EXCEEDED", { resetAt: Date.now() + (quota.retryAfter ?? 0) });
+    if (!MISSION_QUOTA_OFF) {
+      const quota = await limits.limit(ctx, "missionsPerUser", { key: user.userId });
+      if (!quota.ok) throw appError("QUOTA_EXCEEDED", { resetAt: Date.now() + (quota.retryAfter ?? 0) });
+    }
 
     const now = Date.now();
     const missionId = await ctx.db.insert("missions", {

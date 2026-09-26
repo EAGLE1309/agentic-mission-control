@@ -21,7 +21,7 @@ export const config = {
     "/missions/:path*",
     "/inbox/:path*",
     "/templates/:path*",
-    "/tools/:path*",
+    "/integrations/:path*",
     "/agents/:path*",
     "/usage/:path*",
     "/settings/:path*",

@@ -2,7 +2,9 @@
 
 import { IconCircleX, IconFileText } from "@tabler/icons-react";
 import { memo } from "react";
+import { AgentChip } from "@/components/agent-chip";
 import { ROLE_LABEL, TOOL_ICON, toolCallStatusKind } from "@/components/agent-icons";
+import { Favicon, FaviconStack } from "@/components/favicon";
 import { StatusIcon, missionStatusKind, nodeStatusKind, statusSpec } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -114,7 +116,7 @@ const PlanRow = memo(function PlanRow({ nodeId }: { nodeId: string }) {
         <span className="min-w-0 truncate text-foreground" title={node.title}>
           {node.title}
         </span>
-        <span className="shrink-0 text-muted-foreground">{ROLE_LABEL[node.role]}</span>
+        <AgentChip role={node.role} />
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">{label}</span>
       </button>
     </li>
@@ -153,8 +155,10 @@ const ActivityRow = memo(function ActivityRow({ callId }: { callId: string }) {
         <StatusIcon status={toolCallStatusKind(call.status)} className="size-3.5" />
         <ToolIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="shrink-0 font-mono text-xs text-foreground">{call.tool}</span>
+        {call.tool === "fetch_url" && call.urls[0] && <Favicon site={call.urls[0]} />}
         <span className="min-w-0 truncate text-xs text-muted-foreground">{summary}</span>
-        <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
+        {call.tool === "web_search" && <FaviconStack sites={call.urls} className="ml-auto" />}
+        <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", call.tool !== "web_search" || call.urls.length === 0 ? "ml-auto" : "")}>
           {call.durationMs !== null ? formatLatency(call.durationMs) : ""}
         </span>
       </button>
@@ -171,7 +175,9 @@ export function ReportCard() {
   if (!latest) return null;
   return (
     <div className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-raised animate-in fade-in-0 duration-200 ease-out">
-      <IconFileText aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-live-subtle ring-1 ring-live-border/60 ring-inset">
+        <IconFileText aria-hidden className="size-4 text-live" />
+      </span>
       <span className="min-w-0 flex-1 truncate text-sm text-foreground">Report v{latest.version} is ready</span>
       <Button
         variant="outline"

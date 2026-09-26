@@ -33,7 +33,7 @@ import type { CurrentUser } from "./user-avatar";
 
 export function AppSidebar({ user }: { user: CurrentUser | null | undefined }) {
   const pathname = usePathname();
-  const { unreadCount, quota, activeRoles } = useShellData();
+  const { unreadCount, quota, unlimited, activeRoles } = useShellData();
   const { setPaletteOpen } = useShell();
   const { toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const toggleShortcut = useShortcutLabel("b");
@@ -57,7 +57,10 @@ export function AppSidebar({ user }: { user: CurrentUser | null | undefined }) {
           <span>{item.label}</span>
         </SidebarMenuButton>
         {badge !== undefined && badge > 0 && (
-          <SidebarMenuBadge className="bg-muted" aria-label={`${badge} unread`}>
+          <SidebarMenuBadge
+            className="bg-live-subtle text-live peer-hover/menu-button:text-live peer-data-active/menu-button:text-live"
+            aria-label={`${badge} unread`}
+          >
             {badge > 99 ? "99+" : badge}
           </SidebarMenuBadge>
         )}
@@ -138,7 +141,7 @@ export function AppSidebar({ user }: { user: CurrentUser | null | undefined }) {
       </SidebarContent>
 
       <SidebarFooter>
-        <QuotaCard quota={quota} onNavigate={closeOnMobile} />
+        <QuotaCard quota={quota} unlimited={unlimited} onNavigate={closeOnMobile} />
         <UserMenu user={user} />
       </SidebarFooter>
     </Sidebar>
@@ -155,31 +158,48 @@ function LiveDot({ active }: { active: boolean }) {
   );
 }
 
-function QuotaCard({ quota, onNavigate }: { quota: { left: number; max: number } | null; onNavigate: () => void }) {
+function QuotaCard({
+  quota,
+  unlimited,
+  onNavigate,
+}: {
+  quota: { left: number; max: number } | null;
+  unlimited: boolean;
+  onNavigate: () => void;
+}) {
   const empty = quota !== null && quota.left <= 0;
+  const label = unlimited
+    ? "Missions today: no limit. Open usage."
+    : quota
+      ? `Missions today: ${quota.left} of ${quota.max} left. Open usage.`
+      : "Open usage";
   return (
     <Link
       href="/usage"
       onClick={onNavigate}
-      aria-label={quota ? `Missions today: ${quota.left} of ${quota.max} left. Open usage.` : "Open usage"}
+      aria-label={label}
       className="flex flex-col gap-2 rounded-lg bg-card p-3 shadow-raised transition-[box-shadow] duration-150 hover:shadow-raised-hover group-data-[collapsible=icon]:hidden"
     >
       <span className="text-xs text-muted-foreground">Missions today</span>
-      {quota ? (
+      {unlimited ? (
+        <span className="text-sm text-foreground">No daily limit</span>
+      ) : quota ? (
         <span className="text-sm text-foreground tabular-nums">
           {quota.left} of {quota.max} left
         </span>
       ) : (
         <Skeleton className="h-5 w-20" />
       )}
-      <Progress
-        value={quota && quota.max > 0 ? (Math.max(0, quota.left) / quota.max) * 100 : 0}
-        aria-hidden
-        className={cn(
-          "[&_[data-slot=progress-track]]:h-1",
-          empty ? "[&_[data-slot=progress-indicator]]:bg-warning" : "[&_[data-slot=progress-indicator]]:bg-foreground",
-        )}
-      />
+      {!unlimited && (
+        <Progress
+          value={quota && quota.max > 0 ? (Math.max(0, quota.left) / quota.max) * 100 : 0}
+          aria-hidden
+          className={cn(
+            "[&_[data-slot=progress-track]]:h-1",
+            empty ? "[&_[data-slot=progress-indicator]]:bg-warning" : "[&_[data-slot=progress-indicator]]:bg-live",
+          )}
+        />
+      )}
     </Link>
   );
 }

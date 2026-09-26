@@ -17,13 +17,13 @@ import { cn } from "@/lib/utils";
 // Usage (FR-28, design §6.9). No row of big number tiles.
 
 const CAPACITY = {
-  available: { label: "Available", variant: "neutral" },
+  available: { label: "Available", variant: "success" },
   low: { label: "Low", variant: "warning" },
   reached: { label: "Reached", variant: "destructive" },
 } as const;
 
 export function UsageView() {
-  const { quota, capacity } = useShellData();
+  const { quota, unlimited, capacity } = useShellData();
   const totals = useQuery(api.usage.summary);
   const level = capacity?.level ?? "available";
 
@@ -31,7 +31,12 @@ export function UsageView() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-10 px-4 py-8 md:px-6">
       <Section title="Today" description="Each account can start a few missions each day. All accounts share the model capacity.">
         <div className="flex flex-col gap-3 rounded-lg bg-card p-4 shadow-raised">
-          {quota ? (
+          {unlimited ? (
+            <>
+              <p className="text-xl font-semibold">No daily limit</p>
+              <p className="text-sm text-muted-foreground">This deployment does not limit the missions each day.</p>
+            </>
+          ) : quota ? (
             <>
               <p className="text-xl font-semibold tabular-nums">
                 {quota.left} of {quota.max} missions left
@@ -41,7 +46,7 @@ export function UsageView() {
                 aria-label="Missions left today"
                 className={cn(
                   "[&_[data-slot=progress-track]]:h-1.5",
-                  quota.left <= 0 ? "[&_[data-slot=progress-indicator]]:bg-warning" : "[&_[data-slot=progress-indicator]]:bg-foreground",
+                  quota.left <= 0 ? "[&_[data-slot=progress-indicator]]:bg-warning" : "[&_[data-slot=progress-indicator]]:bg-live",
                 )}
               />
               <p className="text-sm text-muted-foreground">Resets at {formatTimeOfDay(quota.resetAt)}</p>

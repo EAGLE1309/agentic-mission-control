@@ -141,7 +141,7 @@ Each event has this envelope: `{ missionId, seq, at, type, nodeId?, payload }`. 
 | `node_started` | `attempt`, `model` |
 | `thought` | `step`, `text` (the text of one finished model step) |
 | `tool_call` | `callId`, `tool`, `inputPreview`, `inputArtifactId` |
-| `tool_result` | `callId`, `ok`, `outputPreview`, `outputArtifactId?`, `durationMs`, `error?` |
+| `tool_result` | `callId`, `ok`, `outputPreview`, `outputArtifactId?`, `durationMs`, `error?`, `urls?` (up to 8 pages the tool found or read, for favicons) |
 | `llm_usage` | `model`, `inputTokens`, `outputTokens`, `latencyMs` |
 | `node_done` | `summary`, `outputArtifactId`, `sources[]` |
 | `node_failed` | `error`, `retryable`, `attempt` |

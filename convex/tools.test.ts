@@ -3,7 +3,7 @@ import { jsonCandidates } from "./engine/llm/json";
 import { chunkText, rankChunks } from "./engine/tools/bm25";
 import { htmlToText } from "./engine/tools/html";
 import { checkUrlShape, isBlockedAddress } from "./engine/tools/ssrf";
-import { effectiveChains, modelOverrides } from "../src/shared/models";
+import { BLOCKED_MODELS, MODEL_PRESETS, effectiveChains, modelOverrides } from "../src/shared/models";
 
 describe("SSRF guard", () => {
   test("blocks private, loopback, link-local, metadata, and reserved addresses", () => {
@@ -81,15 +81,18 @@ describe("JSON from model text", () => {
 });
 
 describe("model selection by env", () => {
-  test("a role value wins over the global value, and bad entries are skipped", () => {
+  test("a role value wins over the global value; bad and blocked entries are skipped", () => {
     const overrides = modelOverrides({
-      OPENROUTER_MODELS: "openrouter/free, not a model,, qwen/qwen3.8-27b:free openrouter/free",
+      OPENROUTER_MODELS: "openrouter/free, not a model,, qwen/qwen3.8-27b:free nvidia/nemotron-3.5-lightning:free openrouter/free",
       OPENROUTER_MODELS_WRITER: "google/gemma-4-31b-it:free",
     });
-    expect(overrides.researcher).toEqual(["openrouter/free", "qwen/qwen3.8-27b:free"]);
+    expect(overrides.researcher).toEqual(["openrouter/free", "nvidia/nemotron-3.5-lightning:free"]);
     expect(overrides.writer).toEqual(["google/gemma-4-31b-it:free"]);
-    expect(effectiveChains("fast", overrides).assembler).toEqual(["openrouter/free", "qwen/qwen3.8-27b:free"]);
+    expect(effectiveChains("fast", overrides).assembler).toEqual(["openrouter/free", "nvidia/nemotron-3.5-lightning:free"]);
     expect(modelOverrides({})).toEqual({});
     expect(effectiveChains("balanced", {}).researcher.at(-1)).toBe("openrouter/free");
+    for (const chain of [...Object.values(MODEL_PRESETS.balanced), ...Object.values(MODEL_PRESETS.fast)]) {
+      expect(chain.some((id) => BLOCKED_MODELS.has(id))).toBe(false);
+    }
   });
 });

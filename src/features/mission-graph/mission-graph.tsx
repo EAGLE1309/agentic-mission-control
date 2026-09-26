@@ -58,9 +58,9 @@ function buildNodes(view: MissionView, positions: Record<string, Position>): Nod
     position: positions[satellite.id] ?? positions[satellite.nodeId] ?? { x: 0, y: 0 },
     data: {},
     // Fixed sizes: React Flow draws a node and its edges only after it knows the size.
-    width: satelliteWidth(satellite.tool, satellite.calls),
+    width: satelliteWidth(satellite.tool, satellite.calls, satellite.sites.length),
     height: SATELLITE_HEIGHT,
-    measured: { width: satelliteWidth(satellite.tool, satellite.calls), height: SATELLITE_HEIGHT },
+    measured: { width: satelliteWidth(satellite.tool, satellite.calls, satellite.sites.length), height: SATELLITE_HEIGHT },
     draggable: false,
     selectable: false,
     connectable: false,

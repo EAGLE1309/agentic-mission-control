@@ -1,6 +1,8 @@
 "use client";
 
+import { api } from "@convex/_generated/api";
 import { IconArrowUp, IconChevronDown, IconCircleX } from "@tabler/icons-react";
+import { useQuery } from "convex/react";
 import {
   forwardRef,
   useImperativeHandle,
@@ -10,6 +12,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { ProviderMark } from "@/components/provider-mark";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ModelProfile } from "@/shared/events";
+import { MODEL_PRESETS } from "@/shared/models";
 
 // The one input for goals and revisions (design §5.4).
 
@@ -160,6 +164,7 @@ export const Composer = forwardRef<
                 <DropdownMenuTrigger
                   render={<Button type="button" variant="ghost" size="xs" disabled={disabled || pending} aria-label={`Model: ${selected.label}`} />}
                 >
+                  <ProfileMarks profile={selected.value} />
                   {selected.label}
                   <IconChevronDown data-icon="inline-end" />
                 </DropdownMenuTrigger>
@@ -169,7 +174,10 @@ export const Composer = forwardRef<
                       {MODEL_PROFILES.map((item) => (
                         <DropdownMenuRadioItem key={item.value} value={item.value}>
                           <span className="flex flex-col">
-                            <span className="text-sm text-foreground">{item.label}</span>
+                            <span className="flex items-center gap-2 text-sm text-foreground">
+                              {item.label}
+                              <ProfileMarks profile={item.value} />
+                            </span>
                             <span className="text-xs text-muted-foreground">{item.description}</span>
                           </span>
                         </DropdownMenuRadioItem>
@@ -209,3 +217,26 @@ export const Composer = forwardRef<
     </div>
   );
 });
+
+/**
+ * The brand marks of the providers that each agent tries first with this
+ * model profile (design §5.4). Only for signed-in screens: the chains need a user.
+ */
+function ProfileMarks({ profile }: { profile: ModelProfile }) {
+  const chains = useQuery(api.catalog.chains);
+  const firsts = Object.values(chains?.[profile] ?? MODEL_PRESETS[profile])
+    .map((chain) => chain[0])
+    .filter((id): id is string => Boolean(id));
+  const byProvider = new Map<string, string>();
+  for (const id of firsts) {
+    const provider = id.split("/")[0];
+    if (!byProvider.has(provider)) byProvider.set(provider, id);
+  }
+  return (
+    <span aria-hidden className="flex items-center gap-1">
+      {[...byProvider.values()].slice(0, 4).map((id) => (
+        <ProviderMark key={id} modelId={id} className="size-3.5" />
+      ))}
+    </span>
+  );
+}

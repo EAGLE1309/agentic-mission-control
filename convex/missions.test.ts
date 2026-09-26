@@ -63,7 +63,7 @@ describe("missions.create", () => {
     expect(count).toBe(MISSIONS_PER_USER_PER_DAY + 1);
 
     const summary = await alice.query(api.shell.summary, {});
-    expect(summary.quota.value).toBe(0);
+    expect(summary.quota?.value).toBe(0);
   });
 });
 

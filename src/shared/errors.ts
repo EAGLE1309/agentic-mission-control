@@ -8,6 +8,8 @@ export const ERROR_CODES = [
   "CAPACITY_EXHAUSTED",
   "INVALID_INPUT",
   "MISSION_NOT_ACTIVE",
+  "APP_NOT_CONFIGURED",
+  "APP_CONNECT_FAILED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

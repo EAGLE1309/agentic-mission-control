@@ -13,8 +13,10 @@ export type Capacity = "available" | "low" | "reached";
 export type ShellData = {
   /** Unread Inbox items. Hidden at 0. */
   unreadCount: number;
-  /** Missions left today. null while it loads. */
+  /** Missions left today. null while it loads, or when there is no limit. */
   quota: Quota | null;
+  /** The deployment has no daily mission limit (MISSION_QUOTA=off). */
+  unlimited: boolean;
   /** Shared model capacity (FR-9). null in simulated mode or while it loads. */
   capacity: { level: Capacity; resetAt: number } | null;
   /** Missions of this user that run a task with each role now. */
@@ -47,9 +49,9 @@ export function useShellData(): ShellData {
   const summary = useQuery(api.shell.summary);
   const now = useMinuteClock();
 
-  if (!summary) return { unreadCount: 0, quota: null, capacity: null, activeRoles: {}, recentMissions: [] };
+  if (!summary) return { unreadCount: 0, quota: null, unlimited: false, capacity: null, activeRoles: {}, recentMissions: [] };
 
-  const quota = windowNow(summary.quota, now);
+  const quota = summary.quota ? windowNow(summary.quota, now) : null;
   let capacity: ShellData["capacity"] = null;
   if (summary.capacity) {
     const current = windowNow(summary.capacity, now);
@@ -60,7 +62,8 @@ export function useShellData(): ShellData {
 
   return {
     unreadCount: summary.unreadCount,
-    quota: { left: quota.left, max: summary.quota.max, resetAt: quota.resetAt },
+    quota: quota && summary.quota ? { left: quota.left, max: summary.quota.max, resetAt: quota.resetAt } : null,
+    unlimited: summary.quota === null,
     capacity,
     activeRoles: summary.activeRoles,
     recentMissions: summary.recentMissions,

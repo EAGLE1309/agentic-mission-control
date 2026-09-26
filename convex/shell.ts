@@ -2,7 +2,7 @@ import { DAY } from "@convex-dev/rate-limiter";
 import { query } from "./_generated/server";
 import { resolveMode } from "./engine/llm/client";
 import { requireUser } from "./lib/auth";
-import { limits } from "./limits";
+import { MISSION_QUOTA_OFF, limits } from "./limits";
 import { ADMISSION_MIN_DAILY_CALLS } from "../src/shared/constants";
 
 // Data for the sidebar, the command palette, and the composer banner
@@ -56,7 +56,8 @@ export const summary = query({
 
     return {
       unreadCount: unread.length,
-      quota: window(quota),
+      // null: this deployment has no daily mission limit.
+      quota: MISSION_QUOTA_OFF ? null : window(quota),
       capacity: capacity ? { ...window(capacity), minimum: ADMISSION_MIN_DAILY_CALLS } : null,
       activeRoles,
       recentMissions: recent.slice(0, 5).map((mission) => ({ id: mission._id, title: mission.title ?? mission.goal })),

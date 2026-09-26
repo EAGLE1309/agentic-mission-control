@@ -4,6 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import { RESEARCHER_PROMPT, WRITER_PROMPT } from "../../src/shared/agents";
 import {
+  RESULT_URLS_MAX,
   TOOL_CALL_TIMEOUT_MS,
   WORKER_DEADLINE_MS,
   WORKER_MAX_STEPS,
@@ -265,6 +266,7 @@ async function runToolCall(
     ? await previewWithArtifact(ctx, { missionId, nodeId, kind: "tool_output", text: outcome.fullText || outcome.output })
     : { preview: preview(outcome.error ?? outcome.output), artifactId: undefined };
 
+  const sources = sourcesOf(call.name, outcome);
   await emit(ctx, missionId, [
     {
       type: "tool_result",
@@ -276,11 +278,12 @@ async function runToolCall(
         ...(output.artifactId ? { outputArtifactId: output.artifactId } : {}),
         durationMs: Math.round(Date.now() - started),
         ...(outcome.ok ? {} : { error: outcome.error ?? "The tool failed." }),
+        ...(sources.length > 0 ? { urls: sources.slice(0, RESULT_URLS_MAX).map((source) => source.url) } : {}),
       },
     },
   ]);
 
-  return { ok: outcome.ok, output: outcome.output, countsAsCall, section, sources: sourcesOf(call.name, outcome) };
+  return { ok: outcome.ok, output: outcome.output, countsAsCall, section, sources };
 }
 
 /** Sources seen in tool results, for a section written as plain text. */

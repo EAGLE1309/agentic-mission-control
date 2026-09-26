@@ -1,6 +1,7 @@
 import { produce, type Draft } from "immer";
 import type { GenericId } from "convex/values";
-import { PACKET_BUFFER } from "./constants";
+import { PACKET_BUFFER, SATELLITE_SITES_MAX } from "./constants";
+import { sourceHost } from "./report";
 import type {
   MissionEvent,
   MissionMode,
@@ -83,9 +84,19 @@ export type ToolCall = {
   outputArtifactId: ArtifactId | null;
   durationMs: number | null;
   error: string | null;
+  /** Pages the call found or read: the URL of fetch_url at once, search results when they come. */
+  urls: string[];
 };
 
-export type Satellite = { id: string; nodeId: string; tool: ToolName; calls: number; running: number };
+export type Satellite = {
+  id: string;
+  nodeId: string;
+  tool: ToolName;
+  calls: number;
+  running: number;
+  /** Hosts of the newest pages of this tool, newest first, for favicons. */
+  sites: string[];
+};
 
 export type GraphEdge = { id: string; source: string; target: string; kind: "flow" | "tool" };
 
@@ -326,12 +337,14 @@ function applyEvent(state: State, event: MissionEvent): void {
       const satelliteId = `${node.id}:${tool}`;
       let satellite = state.satellites[satelliteId];
       if (!satellite) {
-        satellite = { id: satelliteId, nodeId: node.id, tool, calls: 0, running: 0 };
+        satellite = { id: satelliteId, nodeId: node.id, tool, calls: 0, running: 0, sites: [] };
         state.satellites[satelliteId] = satellite;
         state.edges.push({ id: edgeId(node.id, satelliteId), source: node.id, target: satelliteId, kind: "tool" });
       }
       satellite.calls += 1;
       satellite.running += 1;
+      const readUrl = tool === "fetch_url" ? inputUrl(event.payload.inputPreview) : null;
+      if (readUrl) addSites(satellite, [readUrl]);
 
       state.toolCalls[callId] = {
         callId,
@@ -346,6 +359,7 @@ function applyEvent(state: State, event: MissionEvent): void {
         outputArtifactId: null,
         durationMs: null,
         error: null,
+        urls: readUrl ? [readUrl] : [],
       };
       state.activity.push(callId);
       state.stats.toolCalls += 1;
@@ -371,10 +385,14 @@ function applyEvent(state: State, event: MissionEvent): void {
       call.outputArtifactId = event.payload.outputArtifactId ?? null;
       call.durationMs = event.payload.durationMs;
       call.error = event.payload.error ?? null;
+      if (event.payload.urls && event.payload.urls.length > 0) call.urls = event.payload.urls;
 
       const satelliteId = `${call.nodeId}:${call.tool}`;
       const satellite = state.satellites[satelliteId];
-      if (satellite) satellite.running = Math.max(0, satellite.running - 1);
+      if (satellite) {
+        satellite.running = Math.max(0, satellite.running - 1);
+        if (call.tool === "web_search" && event.payload.urls) addSites(satellite, event.payload.urls);
+      }
       const node = state.nodes[call.nodeId];
       if (node) node.currentTool = runningToolOf(state, node.id);
 
@@ -526,6 +544,24 @@ function rebuildEdges(state: State): void {
   const flow: GraphEdge[] = flowEdges(refs).map((edge) => ({ ...edge, kind: "flow" }));
   const tool = state.edges.filter((edge) => edge.kind === "tool");
   state.edges = [...flow, ...tool];
+}
+
+/** The URL of a fetch_url input. Previews can be cut, so a pattern reads it when the JSON does not parse. */
+function inputUrl(inputPreview: string): string | null {
+  let value: unknown;
+  try {
+    value = (JSON.parse(inputPreview) as Record<string, unknown>).url;
+  } catch {
+    value = /"url"\s*:\s*"([^"]+)"/.exec(inputPreview)?.[1];
+  }
+  return typeof value === "string" && /^https?:\/\//i.test(value) ? value : null;
+}
+
+/** Put the hosts of `urls` first on the satellite, without repeats. */
+function addSites(satellite: Draft<Satellite>, urls: readonly string[]): void {
+  const hosts = urls.map(sourceHost).filter((host) => host.length > 0);
+  const next = [...new Set([...hosts, ...satellite.sites])];
+  satellite.sites = next.slice(0, SATELLITE_SITES_MAX);
 }
 
 function runningToolOf(state: State, nodeId: string): ToolName | null {

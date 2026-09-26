@@ -28,8 +28,8 @@ const SHELL: Record<MissionNode["status"], string> = {
 export const HANDLE_COLOR: Record<EdgeState, string> = {
   waiting: "bg-muted-foreground/40",
   active: "bg-live",
-  delivered: "bg-muted-foreground/50",
-  failed: "bg-destructive/50",
+  delivered: "bg-success",
+  failed: "bg-destructive",
 };
 
 function useSecondLine(node: MissionNode): { text: string; tone: "muted" | "destructive" } {
@@ -110,7 +110,11 @@ function TaskCard({ node }: { node: MissionNode }) {
       className={cn(
         "flex cursor-pointer flex-col rounded-lg p-1 shadow-raised transition-[background-color,box-shadow] duration-150 hover:shadow-raised-hover",
         "animate-node-enter motion-reduce:animate-none",
-        node.isNew ? "border border-dashed border-live-border bg-live-subtle" : SHELL[node.status],
+        node.isNew
+          ? "border border-dashed border-live-border bg-live-subtle"
+          : node.role === "report" && node.status === "done"
+            ? "bg-success-subtle ring-1 ring-success/40"
+            : SHELL[node.status],
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-canvas",
       )}
     >

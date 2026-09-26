@@ -19,6 +19,9 @@ function positiveInt(raw: string | undefined, fallback: number): number {
 /** Missions each user can start each day. MISSION_QUOTA overrides it (development). */
 export const MISSION_QUOTA = positiveInt(process.env.MISSION_QUOTA, MISSIONS_PER_USER_PER_DAY);
 
+/** MISSION_QUOTA=off turns the daily mission limit off, for a development deployment. */
+export const MISSION_QUOTA_OFF = ["off", "none", "unlimited"].includes((process.env.MISSION_QUOTA ?? "").trim().toLowerCase());
+
 /** OpenRouter calls each day for all users, minus the safety margin. */
 export const DAILY_CALL_CAP = Math.floor(
   positiveInt(process.env.OPENROUTER_DAILY_CAP, 1000) * (1 - OPENROUTER_DAILY_SAFETY),

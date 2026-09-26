@@ -5,38 +5,38 @@ import type { ModelProfile } from "./events";
 // OpenRouter models. When a model fails, the engine uses the next one. To
 // change a model, change only this file. Picked from the free list of
 // 2026-09-26; the daily catalog skips a model that is gone for 48 hours.
+// BLOCKED_MODELS are never used, not even from env.
 
 export type ModelChains = Record<AgentRole, readonly string[]>;
+
+/**
+ * Models that are never used: they answered almost every call with a
+ * temporary rate limit (2026-09-26).
+ */
+export const BLOCKED_MODELS: ReadonlySet<string> = new Set(["qwen/qwen3.8-27b:free", "google/gemma-4-26b-a4b-it:free"]);
 
 export const MODEL_PRESETS: Record<ModelProfile, ModelChains> = {
   balanced: {
     orchestrator: [
       "nvidia/nemotron-3-super-120b-a12b:free",
-      "qwen/qwen3.8-27b:free",
       "dots-studio/dots-3-note-preview:free",
       "google/gemma-4-31b-it:free",
     ],
     researcher: [
-      "qwen/qwen3.8-27b:free",
       "nvidia/nemotron-3-super-120b-a12b:free",
       "google/gemma-4-31b-it:free",
       "thinkingmachines/inkling:free",
       // openrouter/free only at the end of the researcher chain: its abilities change from call to call.
       "openrouter/free",
     ],
-    writer: ["nvidia/nemotron-3-ultra-550b-a55b:free", "qwen/qwen3.8-27b:free", "google/gemma-4-31b-it:free"],
-    assembler: ["nvidia/nemotron-3-ultra-550b-a55b:free", "thinkingmachines/inkling:free", "qwen/qwen3.8-27b:free"],
+    writer: ["nvidia/nemotron-3-ultra-550b-a55b:free", "google/gemma-4-31b-it:free", "thinkingmachines/inkling:free"],
+    assembler: ["nvidia/nemotron-3-ultra-550b-a55b:free", "thinkingmachines/inkling:free", "google/gemma-4-31b-it:free"],
   },
   fast: {
-    orchestrator: ["qwen/qwen3.8-27b:free", "google/gemma-4-26b-a4b-it:free", "nvidia/nemotron-3.5-lightning:free"],
-    researcher: [
-      "nvidia/nemotron-3.5-lightning:free",
-      "google/gemma-4-26b-a4b-it:free",
-      "qwen/qwen3.8-27b:free",
-      "openrouter/free",
-    ],
-    writer: ["google/gemma-4-26b-a4b-it:free", "qwen/qwen3.8-27b:free", "nvidia/nemotron-3.5-lightning:free"],
-    assembler: ["thinkingmachines/inkling-small:free", "google/gemma-4-26b-a4b-it:free", "qwen/qwen3.8-27b:free"],
+    orchestrator: ["nvidia/nemotron-3.5-lightning:free", "thinkingmachines/inkling-small:free", "google/gemma-4-31b-it:free"],
+    researcher: ["nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free", "openrouter/free"],
+    writer: ["nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free", "thinkingmachines/inkling:free"],
+    assembler: ["thinkingmachines/inkling-small:free", "nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free"],
   },
 };
 
@@ -44,7 +44,7 @@ export const MODEL_PRESETS: Record<ModelProfile, ModelChains> = {
  * Model selection by environment (Convex env). OPENROUTER_MODELS sets one chain
  * for every agent. OPENROUTER_MODELS_<ROLE> sets the chain of one agent and wins.
  * Values are comma-separated OpenRouter model IDs, for example
- * "openrouter/free" or "qwen/qwen3.8-27b:free,openrouter/free".
+ * "openrouter/free" or "google/gemma-4-31b-it:free,openrouter/free".
  */
 export const MODELS_ENV = "OPENROUTER_MODELS";
 export const ROLE_MODELS_ENV: Record<AgentRole, string> = {
@@ -59,13 +59,13 @@ export type ModelOverrides = Partial<Record<AgentRole, string[]>>;
 const MODEL_ID = /^[\w.-]+\/[\w.:-]+$/;
 const MAX_CHAIN = 8;
 
-/** Model IDs from an env value. Entries that are not model IDs are skipped. */
+/** Model IDs from an env value. Entries that are not model IDs, and blocked models, are skipped. */
 export function parseModelList(raw: string | undefined): string[] {
   if (!raw) return [];
   const ids = raw
     .split(/[\s,]+/)
     .map((id) => id.trim())
-    .filter((id) => MODEL_ID.test(id));
+    .filter((id) => MODEL_ID.test(id) && !BLOCKED_MODELS.has(id));
   return [...new Set(ids)].slice(0, MAX_CHAIN);
 }
 

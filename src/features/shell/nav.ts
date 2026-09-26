@@ -5,11 +5,11 @@ import {
   IconHistory,
   IconInbox,
   IconPencil,
+  IconPlugConnected,
   IconSettings,
   IconSitemap,
   IconTelescope,
   IconTemplate,
-  IconTool,
   type Icon,
 } from "@tabler/icons-react";
 import type { AgentRole } from "@/shared/agents";
@@ -26,7 +26,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
 
 export const SECONDARY_NAV: readonly NavItem[] = [
   { href: "/templates", label: "Templates", icon: IconTemplate },
-  { href: "/tools", label: "Tools", icon: IconTool },
+  { href: "/integrations", label: "Integrations", icon: IconPlugConnected },
 ];
 
 export const PAGES: readonly NavItem[] = [

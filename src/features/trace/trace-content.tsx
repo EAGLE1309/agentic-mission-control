@@ -2,7 +2,10 @@
 
 import { IconChevronRight, IconCircleX, IconClock, IconX } from "@tabler/icons-react";
 import { memo, useEffect, useRef, type ReactNode } from "react";
-import { ROLE_ICON, ROLE_LABEL, TOOL_ICON, toolCallStatusKind } from "@/components/agent-icons";
+import { AgentChip } from "@/components/agent-chip";
+import { Favicon, FaviconStack } from "@/components/favicon";
+import { ROLE_ICON, TOOL_ICON, toolCallStatusKind } from "@/components/agent-icons";
+import { ProviderMark, modelName, providerName } from "@/components/provider-mark";
 import { EmptyState } from "@/components/empty-state";
 import { IconButton } from "@/components/icon-button";
 import { StatusBadge, StatusIcon, nodeStatusKind } from "@/components/status";
@@ -18,6 +21,7 @@ import { toolInputSummary } from "@/features/mission-stream/tool-summary";
 import { useRun } from "@/features/run/store";
 import { useNow } from "@/hooks/use-now";
 import { formatClock, formatDuration, formatLatency, formatTokens, plural } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { MissionNode, TraceStep } from "@/shared/reducer";
 import { sourceHost } from "@/shared/report";
 import { TextBlock } from "./artifact-block";
@@ -52,12 +56,14 @@ export function TraceContent({ nodeId, onClose, focusTitle }: { nodeId: string; 
         </div>
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
           <StatusBadge status={nodeStatusKind(node.status)} />
-          <span>· {ROLE_LABEL[node.role]}</span>
+          <AgentChip role={node.role} />
           {node.attempt > 0 && <span>· attempt {node.attempt}</span>}
         </div>
         {node.model && (
-          <p className="truncate font-mono text-xs text-muted-foreground" title={node.model}>
-            model: {node.model}
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground" title={node.model}>
+            <ProviderMark modelId={node.model} className="size-3.5" />
+            <span className="truncate text-foreground">{modelName(node.model)}</span>
+            <span className="shrink-0">{providerName(node.model)}</span>
           </p>
         )}
       </header>
@@ -176,8 +182,10 @@ const ToolCallRow = memo(function ToolCallRow({ callId }: { callId: string }) {
           <StatusIcon status={toolCallStatusKind(call.status)} className="size-3.5" />
           <ToolIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="shrink-0 font-mono text-xs text-foreground">{call.tool}</span>
+          {call.tool === "fetch_url" && call.urls[0] && <Favicon site={call.urls[0]} />}
           <span className="min-w-0 truncate text-xs text-muted-foreground">{toolInputSummary(call.tool, call.inputPreview)}</span>
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
+          {call.tool === "web_search" && <FaviconStack sites={call.urls} className="ml-auto" />}
+          <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", call.tool !== "web_search" || call.urls.length === 0 ? "ml-auto" : "")}>
             {call.durationMs !== null ? formatLatency(call.durationMs) : ""}
           </span>
         </CollapsibleTrigger>

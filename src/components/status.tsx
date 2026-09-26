@@ -15,7 +15,7 @@ import type { MissionStatus, NodeStatus } from "@/shared/events";
 
 // The only map from a status to its label, icon, and tone (design §5.3).
 
-export type Tone = "neutral" | "live" | "warning" | "destructive";
+export type Tone = "neutral" | "live" | "success" | "warning" | "destructive";
 
 export type StatusKind =
   | "pending"
@@ -24,6 +24,7 @@ export type StatusKind =
   | "planning"
   | "assembling"
   | "done"
+  | "ok"
   | "completed"
   | "partial"
   | "failed"
@@ -38,17 +39,23 @@ const STATUS: Record<StatusKind, StatusSpec> = {
   running: { label: "Running", icon: IconLoader2, tone: "live", spins: true },
   planning: { label: "Planning", icon: IconLoader2, tone: "live", spins: true },
   assembling: { label: "Writing report", icon: IconLoader2, tone: "live", spins: true },
-  done: { label: "Done", icon: IconCircleCheck, tone: "neutral" },
-  completed: { label: "Completed", icon: IconCircleCheck, tone: "neutral" },
+  done: { label: "Done", icon: IconCircleCheck, tone: "success" },
+  // A finished tool call is a routine step: it stays neutral.
+  ok: { label: "Done", icon: IconCircleCheck, tone: "neutral" },
+  completed: { label: "Completed", icon: IconCircleCheck, tone: "success" },
   partial: { label: "Partial", icon: IconAlertTriangle, tone: "warning" },
   failed: { label: "Failed", icon: IconCircleX, tone: "destructive" },
   killed: { label: "Stopped", icon: IconBan, tone: "neutral" },
   stopped: { label: "Stopped", icon: IconPlayerStop, tone: "neutral" },
 };
 
+/** A loader turns once each 800ms, and slower with reduced motion: a still loader looks broken. */
+const SPIN = "animate-[spin_0.8s_linear_infinite] motion-reduce:animate-[spin_1.6s_linear_infinite]";
+
 const ICON_TONE: Record<Tone, string> = {
   neutral: "text-muted-foreground",
   live: "text-live",
+  success: "text-success",
   warning: "text-warning",
   destructive: "text-destructive",
 };
@@ -85,9 +92,11 @@ export function StatusIcon({
       role="img"
       aria-label={label ?? spec.label}
       className={cn(
-        "size-4 shrink-0 animate-in fade-in-0 zoom-in-95 duration-150 ease-out",
+        "size-4 shrink-0",
         ICON_TONE[spec.tone],
-        spec.spins && "animate-[spin_0.8s_linear_infinite] motion-reduce:animate-none",
+        // Both set `animation`, so a spinner skips the entrance fade: with it,
+        // the one-shot fade replaced the spin and the loader stood still.
+        spec.spins ? SPIN : "animate-in fade-in-0 zoom-in-95 duration-150 ease-out",
         className,
       )}
     />
@@ -101,7 +110,7 @@ export function StatusBadge({ status, className }: { status: StatusKind; classNa
     <Badge variant={spec.tone} className={className}>
       <Icon
         aria-hidden
-        className={cn(spec.spins && "animate-[spin_0.8s_linear_infinite] motion-reduce:animate-none")}
+        className={cn(spec.spins && SPIN)}
       />
       {spec.label}
     </Badge>

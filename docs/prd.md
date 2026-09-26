@@ -18,7 +18,7 @@ Most agent products show only a spinner. Mission Control shows the process. In v
 ## 3. Not in scope
 
 - Billing and payments.
-- Integrations with third-party apps (Zendesk, Notion, Slack, and similar).
+- Agents that read third-party apps in a mission. v1 lets a user connect apps through Composio (FR-29); agents use them in a later version.
 - Native mobile apps. The web app works on mobile, but desktop is the primary target.
 - Agents that change things outside the app, for example: send email, post, or buy.
 - General chat. Each conversation is a mission.
@@ -110,7 +110,7 @@ The v1 target: the full loop works from end to end, and each screen is complete.
 - **FR-26** The missions list shows the title, status, duration, tokens, and date. The user can search and filter by status.
 - **FR-27** The Inbox shows a notification when a mission completes or fails. Each notification is read or unread.
 - **FR-28** The Usage page shows the missions that remain today. It also shows the totals of missions and tokens for the user.
-- **FR-29** The Tools page and the Agents page show the built-in tools and roles: descriptions, models, and prompts. The user cannot edit them.
+- **FR-29** The Integrations page shows the built-in tools, the services the agents use (models, web, sign-in) with their setup state, and third-party apps that the user connects and disconnects through Composio. The Agents page shows the roles: descriptions, models, and prompts. The user cannot edit tools or roles.
 
 ### 7.8 Quality
 

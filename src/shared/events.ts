@@ -113,6 +113,8 @@ const toolResult = defineEvent("tool_result", {
   outputArtifactId: v.optional(v.id("artifacts")),
   durationMs: v.number(),
   error: v.optional(v.string()),
+  /** The pages that the tool found or read, for favicons. Older events have none. */
+  urls: v.optional(v.array(v.string())),
 });
 const llmUsage = defineEvent("llm_usage", {
   model: v.string(),

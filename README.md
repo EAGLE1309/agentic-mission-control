@@ -35,7 +35,8 @@ Convex (`npx convex env set`):
 | `TAVILY_API_KEY` | Live mode | `web_search`. Without it, agents use `fetch_url` only. |
 | `JINA_API_KEY` | No | Higher Jina Reader limits. |
 | `LLM_MODE` | No | `simulated` or `live`. Default: live when an OpenRouter key is set. |
-| `MISSION_QUOTA` | No | Missions for each user each day. Default 3. |
+| `MISSION_QUOTA` | No | Missions for each user each day. Default 3. `off` removes the limit (development). |
+| `COMPOSIO_API_KEY` | No | Connect third-party apps on the Integrations page through [Composio](https://composio.dev). |
 
 A sign-in button shows only when its provider has keys.
 
@@ -53,5 +54,5 @@ Next.js (`.env.local`): `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CONVEX_SITE_URL`,
 
 ## Notes
 
-- Model chains are in [`src/shared/models.ts`](src/shared/models.ts). A daily cron refreshes the free model catalog and skips preset models that are gone. A chain set by env is used as given. The Agents page shows the chains in use.
+- Model chains are in [`src/shared/models.ts`](src/shared/models.ts). `BLOCKED_MODELS` lists models that are never used, not even from env. A daily cron refreshes the free model catalog and skips preset models that are gone. A chain set by env is used as given. The Agents page shows the chains in use.
 - The landing demo plays [`fixtures/missions/landing.json`](fixtures/missions/landing.json), an event log recorded from a mission. To record a new one, run a mission, export its events with `events:page`, and replace the file.

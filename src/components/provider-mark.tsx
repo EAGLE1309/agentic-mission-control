@@ -1,12 +1,17 @@
+import { IconFlask } from "@tabler/icons-react";
+import Composio from "@thesvg/react/composio";
+import Github from "@thesvg/react/github";
 import Google from "@thesvg/react/google";
+import JinaAi from "@thesvg/react/jina-ai";
 import Nvidia from "@thesvg/react/nvidia";
 import OpenRouter from "@thesvg/react/openrouter";
 import Qwen from "@thesvg/react/qwen";
+import Tavily from "@thesvg/react/tavily";
 import { cn } from "@/lib/utils";
 
-// Model provider marks (design §4.1): original brand colors. A brand with
-// light and dark marks shows the one for the theme. A provider with no mark
-// of its own gets a letter tile.
+// Brand marks of model providers and services (design §4.1): original brand
+// colors. A brand with light and dark marks shows the one for the theme. A
+// brand with no mark of its own gets a letter tile.
 
 const PROVIDER_NAMES: Record<string, string> = {
   qwen: "Qwen",
@@ -22,10 +27,16 @@ const PROVIDER_NAMES: Record<string, string> = {
   "meta-llama": "Meta",
   mistralai: "Mistral",
   deepseek: "DeepSeek",
+  simulated: "Scripted",
+  tavily: "Tavily",
+  jina: "Jina AI",
+  github: "GitHub",
+  composio: "Composio",
 };
 
-export function providerName(modelId: string): string {
-  const key = modelId.split("/")[0] ?? modelId;
+/** The display name of a brand key ("qwen", "tavily"), or of the provider of a model ID. */
+export function providerName(modelIdOrBrand: string): string {
+  const key = modelIdOrBrand.split("/")[0] ?? modelIdOrBrand;
   return PROVIDER_NAMES[key] ?? key.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
@@ -34,6 +45,7 @@ export function providerName(modelId: string): string {
  * "(free)", or a name made from the ID.
  */
 export function modelName(modelId: string, catalogName?: string | null): string {
+  if (modelId.startsWith("simulated/")) return "Simulated model";
   if (catalogName) {
     const clean = catalogName
       .replace(/^[^:]+:\s*/, "")
@@ -49,10 +61,30 @@ export function modelName(modelId: string, catalogName?: string | null): string 
     .join(" ");
 }
 
+/** The mark of the provider of a model ID. */
 export function ProviderMark({ modelId, className }: { modelId: string; className?: string }) {
-  const key = modelId.split("/")[0];
+  return <BrandMark brand={modelId.split("/")[0] ?? modelId} className={className} />;
+}
+
+/** A brand mark by key: model providers, tool services, and sign-in providers. */
+export function BrandMark({ brand, className }: { brand: string; className?: string }) {
   const size = cn("size-4 shrink-0", className);
-  switch (key) {
+  switch (brand) {
+    case "tavily":
+      return <Tavily variant="color" aria-hidden className={size} />;
+    case "jina":
+      return <JinaAi aria-hidden className={cn(size, "text-foreground")} />;
+    case "github":
+      return <Github variant="mono" aria-hidden className={cn(size, "text-foreground")} />;
+    case "composio":
+      // The mark is white only, so it sits on its brand's black tile.
+      return (
+        <span aria-hidden className={cn("flex items-center justify-center rounded-[4px] bg-[oklch(0.18_0_0)]", size)}>
+          <Composio className="size-[70%]" />
+        </span>
+      );
+    case "simulated":
+      return <IconFlask aria-hidden className={cn(size, "text-muted-foreground")} />;
     case "google":
       return <Google variant="default" aria-hidden className={size} />;
     case "qwen":
@@ -77,7 +109,7 @@ export function ProviderMark({ modelId, className }: { modelId: string; classNam
             className,
           )}
         >
-          {providerName(modelId).charAt(0)}
+          {providerName(brand).charAt(0)}
         </span>
       );
   }
