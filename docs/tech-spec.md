@@ -31,7 +31,7 @@ Each term has one meaning in this document.
 | Limits | Convex Rate Limiter component |
 | Auth | Better Auth, Convex integration |
 | Models | OpenRouter free models, Vercel AI SDK |
-| Tools | Tavily for search. Jina Reader for pages, with direct fetch as the fallback. |
+| Tools | Linkup, Exa, and Tavily for search, in that order. Jina Reader for pages, with direct fetch as the fallback. |
 | Retrieval | BM25 in memory for page chunks. Convex search index (BM25) for agent memory (v2). |
 | Markdown | Streamdown, with raw HTML off |
 | Client state | Zustand, one store for each run view |
@@ -49,7 +49,7 @@ Browser ── Convex WebSocket ──► queries: events tail, nodeLive, missio
    ▼
 Convex: missions.create → missionWorkflow
         plan → waves of workers (parallel) → [critic v2] → assemble → finish
-        each step = Node action → rate limiter → OpenRouter / Tavily / Jina
+        each step = Node action → rate limiter → OpenRouter / search services / Jina
         actions call emit() → appendEvents (internal mutation)
 Next server: RSC preload · /api/auth/[...all] → Better Auth on Convex · proxy.ts redirect
 ```
@@ -141,7 +141,7 @@ Each event has this envelope: `{ missionId, seq, at, type, nodeId?, payload }`. 
 | `node_started` | `attempt`, `model` |
 | `thought` | `step`, `text` (the text of one finished model step) |
 | `tool_call` | `callId`, `tool`, `inputPreview`, `inputArtifactId` |
-| `tool_result` | `callId`, `ok`, `outputPreview`, `outputArtifactId?`, `durationMs`, `error?`, `urls?` (up to 8 pages the tool found or read, for favicons) |
+| `tool_result` | `callId`, `ok`, `outputPreview`, `outputArtifactId?`, `durationMs`, `error?`, `urls?` (up to 8 pages or app items the tool found, read, or created, for favicons) |
 | `llm_usage` | `model`, `inputTokens`, `outputTokens`, `latencyMs` |
 | `node_done` | `summary`, `outputArtifactId`, `sources[]` |
 | `node_failed` | `error`, `retryable`, `attempt` |
@@ -232,13 +232,17 @@ The reducer and `appendEvents` use the same rules from `src/shared/plan.ts`. Thu
 
 ### 7.5 Tools
 
-All tools are read-only. A tool error goes back to the model as data. It does not stop the worker.
+The web tools only read. `app_write` is the only tool that changes something outside the app: it creates new items, only in apps where the user turned on Write. A tool error goes back to the model as data. It does not stop the worker.
 
 | Tool | Roles | Behavior |
 |---|---|---|
-| `web_search` | researcher | Tavily search. If the Tavily quota is empty, the tool tells the model to use `fetch_url`. |
+| `web_search` | researcher | Search on the first service with a key and searches left: Linkup, then Exa, then Tavily (`convex/engine/tools/search.ts`). A service that is out of searches, returns an error, or takes more than 9 s passes the query to the next one. An empty result does not. When no service is left, the tool tells the model to use `fetch_url`. Each service has a daily cap (§8). |
 | `fetch_url` `{ url, focus? }` | researcher | Gets one page. See the steps below. |
-| `write_section` | researcher, writer | Sends the final section and its sources. It ends the worker loop. |
+| `app_search` `{ app, query }` | librarian | One read-only Composio search action of a connected app with Read on (`convex/engine/tools/appActions.ts`). |
+| `app_write` `{ app, title, content, target? }` | librarian | One create-only Composio action of an app with Write on: a Notion page, Google Doc, Gmail draft (never sent), Slack message, or GitHub issue. 2 for each task at most. |
+| `write_section` | researcher, writer, librarian | Sends the final section and its sources. It ends the worker loop. |
+
+**Librarian and Composio.** The orchestrator gets the usable apps of the user with the goal, and plans a librarian task only when apps are listed (the plan check rejects it otherwise). The librarian never reads the web. The tool definitions list only the allowed apps, as an enum. Each app call runs in `engine/appTools.run` (Node): it checks the permission again (the user can change it during the mission), then opens a Composio session with the direct-tools preset that allows exactly one action of one app, with no meta tools, no connection prompts, and no sandbox, and runs `session.execute`. Results go back to the model inside `<app_content>` as untrusted data, as numbered items with a title, URL, and snippet (and the page ID for Notion). The Composio user ID is a hash of the token identifier. In simulated mode the app tools return made-up items with app-like links.
 
 `fetch_url` does these steps:
 
@@ -262,7 +266,7 @@ Free models often have small context windows. Steps 3–5 keep the prompts small
 ### 7.7 Simulated mode
 
 - Turn it on with `LLM_MODE=simulated`, or for one mission in development.
-- It plays scripts from `convex/engine/llm/scripts/`. Each script has a seed and realistic delays. It does not call OpenRouter or Tavily.
+- It plays scripts from `convex/engine/llm/scripts/`. Each script has a seed and realistic delays. It does not call OpenRouter or a search service.
 - The E2E tests use simulated mode.
 - The landing page plays `fixtures/missions/landing.json` in the browser only. It needs no backend.
 
@@ -273,10 +277,14 @@ Free models often have small context windows. Steps 3–5 keep the prompts small
 | OpenRouter per minute | token bucket | global | 18 per minute, capacity 4 |
 | OpenRouter per day | fixed window (UTC day) | global | `OPENROUTER_DAILY_CAP` minus 5% |
 | Missions per user | fixed window (day) | `userId` | 3 |
+| Linkup per day | fixed window (day) | global | 130 (approximately 4,000 each month) |
+| Exa per day | fixed window (day) | global | 25 (approximately $10 each month) |
 | Tavily per day | fixed window (day) | global | 30 (approximately 1,000 each month) |
 | Mission budget | engine counter | mission | 60 model calls |
 | Steers (v2) | token bucket | `userId` | 10 per minute |
 
+- The search caps follow the free plans. None of the three plans needs a card. Together they give approximately 185 searches each day. `LINKUP_DAILY_CAP`, `EXA_DAILY_CAP`, and `TAVILY_DAILY_CAP` override them.
+- Linkup gives the free credit only to an account with a work email. Exa can bill highlights by the page, so its cap assumes $0.012 for each search.
 - The account has the 1,000-per-day tier ($10 credits). Set `OPENROUTER_DAILY_CAP=1000`. This gives approximately 25–40 missions each day for all users together.
 - **Admission:** If fewer than 45 daily calls remain, `missions.create` refuses the mission with `CAPACITY_EXHAUSTED`. Running missions continue.
 - **429 errors:** If OpenRouter still sends a 429, wait for `Retry-After`. Then try again with backoff. The maximum is 3 attempts.
@@ -418,7 +426,7 @@ UI error codes: `UNAUTHENTICATED`, `NOT_FOUND`, `QUOTA_EXCEEDED`, `CAPACITY_EXHA
 
 ## 14. Configuration
 
-- **Convex environment:** `OPENROUTER_API_KEY`, `OPENROUTER_DAILY_CAP`, `LLM_MODE`, `TAVILY_API_KEY`, `JINA_API_KEY` (optional), `BETTER_AUTH_SECRET`, `SITE_URL`, GitHub and Google OAuth keys, `RESEND_API_KEY` (v2).
+- **Convex environment:** `OPENROUTER_API_KEY`, `OPENROUTER_DAILY_CAP`, `LLM_MODE`, `LINKUP_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY` (one or more), `JINA_API_KEY` (optional), `BETTER_AUTH_SECRET`, `SITE_URL`, GitHub and Google OAuth keys, `RESEND_API_KEY` (v2).
 - **Next.js environment:** `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CONVEX_SITE_URL`, `NEXT_PUBLIC_SITE_URL`.
 
 ## 15. Decisions
@@ -442,5 +450,5 @@ UI error codes: `UNAUTHENTICATED`, `NOT_FOUND`, `QUOTA_EXCEEDED`, `CAPACITY_EXHA
 |---|---|
 | Free models disappear or lose tool support | Daily catalog update and model chains. The model ID in each `node_started` and `llm_usage` event shows which models fail. |
 | High write rate from `nodeLive` | 4 writes each second or less for each active node. The rate limiter keeps active nodes at approximately 6 maximum. |
-| Tavily quota is empty | Daily soft cap. The tool tells the model to use `fetch_url`. |
+| A search quota is empty | Three services, each with a daily soft cap. The next service takes the query. When all are empty, the tool tells the model to use `fetch_url`. |
 | convex-test does not support the Workflow component | Test workflows on a dev deployment in simulated mode. |

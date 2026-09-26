@@ -1,5 +1,6 @@
 import {
   IconArrowsJoin,
+  IconBooks,
   IconEdit,
   IconGauge,
   IconHistory,
@@ -41,6 +42,7 @@ export const AGENT_NAV: readonly { role: AgentRole; label: string; icon: Icon }[
   { role: "orchestrator", label: "Orchestrator", icon: IconSitemap },
   { role: "researcher", label: "Researcher", icon: IconTelescope },
   { role: "writer", label: "Writer", icon: IconPencil },
+  { role: "librarian", label: "Librarian", icon: IconBooks },
   { role: "assembler", label: "Assembler", icon: IconArrowsJoin },
 ];
 

@@ -17,12 +17,18 @@ export const MODEL_ATTEMPTS_PER_CALL = 3;
 export const WORKER_DEADLINE_MS = 7 * 60_000;
 export const NODE_LIVE_MIN_INTERVAL_MS = 250;
 
-// fetch_url (tech spec §7.5)
+// web_search and fetch_url (tech spec §7.5)
 export const FETCH_MAX_BYTES = 5 * 1024 * 1024;
 export const FETCH_TIMEOUT_MS = 15_000;
 /** Jina Reader gets less, so Jina and the direct fallback fit in the 30s tool timeout. */
 export const JINA_TIMEOUT_MS = 10_000;
 export const SEARCH_RESULTS = 5;
+/** The characters of each search result that the model reads. */
+export const SEARCH_SNIPPET_CHARS = 400;
+/** One search service gets less, so three services fit in the 30s tool timeout. */
+export const SEARCH_TIMEOUT_MS = 9_000;
+/** Web search services, in the order that web_search tries them (tech spec §7.5). */
+export const SEARCH_ORDER = ["linkup", "exa", "tavily"] as const;
 export const FETCH_MAX_REDIRECTS = 5;
 export const CHUNK_CHARS = 1_500;
 export const FETCH_CONTEXT_MAX_CHARS = 8_000;
@@ -32,7 +38,8 @@ export const OPENROUTER_PER_MINUTE = 18;
 export const OPENROUTER_BURST = 4;
 export const OPENROUTER_DAILY_SAFETY = 0.05;
 export const MISSIONS_PER_USER_PER_DAY = 3;
-export const TAVILY_PER_DAY = 30;
+/** Searches each day for all users, per service: the free plan of each month over 30 days. */
+export const SEARCH_PER_DAY = { linkup: 130, exa: 25, tavily: 30 } as const;
 export const MISSION_CALL_BUDGET = 60;
 export const ADMISSION_MIN_DAILY_CALLS = 45;
 export const PROVIDER_429_MAX_ATTEMPTS = 3;
@@ -46,6 +53,9 @@ export const STUCK_SWEEP_MINUTES = 5;
 
 // Events and artifacts (tech spec §3.1, §5.1, §9.1)
 export const PREVIEW_MAX_CHARS = 500;
+
+/** Items that one librarian task can create with app_write. */
+export const APP_WRITES_MAX = 2;
 
 /** Result URLs that a tool_result carries, for favicons (design §6.4). */
 export const RESULT_URLS_MAX = 8;

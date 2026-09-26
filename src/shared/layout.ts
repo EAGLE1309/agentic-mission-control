@@ -25,7 +25,7 @@ export function satelliteWidth(tool: ToolName, calls: number, sites = 0): number
   return Math.ceil(8 + 14 + 6 + tool.length * 7.8 + 6 + (1 + String(calls).length) * 7 + favicons + 8);
 }
 
-const TOOL_ORDER: readonly ToolName[] = ["web_search", "fetch_url", "write_section"];
+const TOOL_ORDER: readonly ToolName[] = ["web_search", "fetch_url", "app_search", "app_write", "write_section"];
 
 export type Position = { x: number; y: number };
 export type GraphLayout = {

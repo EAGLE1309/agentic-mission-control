@@ -14,7 +14,7 @@ import type {
 
 // Simulated mode (FR-31, tech spec §7.7). It acts like a model: it plans,
 // calls tools, and writes text with realistic delays. It is deterministic for
-// a seed, and it never calls OpenRouter or Tavily.
+// a seed, and it never calls OpenRouter or a search service.
 
 const RESEARCH_TASKS = [
   {
@@ -164,7 +164,7 @@ export function createSimulatedClient(): LlmClient {
       const count = rng.int(2, 3);
       const research = [...RESEARCH_TASKS].sort(() => rng.next() - 0.5).slice(0, count);
       const withWriter = rng.chance(0.7);
-      const nodes: { id: string; role: "researcher" | "writer"; title: string; instructions: string; dependsOn: string[] }[] =
+      const nodes: { id: string; role: "researcher" | "writer" | "librarian"; title: string; instructions: string; dependsOn: string[] }[] =
         research.map((task) => ({
           id: task.id,
           role: "researcher",
@@ -172,15 +172,33 @@ export function createSimulatedClient(): LlmClient {
           instructions: task.instructions(goal),
           dependsOn: [],
         }));
+      // With connected apps, a librarian task reads the user's own sources too.
+      const readable = (args.sim.apps ?? []).filter((app) => app.read);
+      if (readable.length > 0) {
+        const names = readable.map((app) => app.name).join(", ");
+        nodes.push({
+          id: "own-sources",
+          role: "librarian",
+          title: `Check ${readable[0].name} for past notes`.slice(0, 60),
+          instructions: `Search ${names} for notes, decisions, and data about: ${goal}`,
+          dependsOn: [],
+        });
+      }
+      const inputs = nodes.map((node) => node.id);
       if (withWriter) {
         nodes.push({
           id: "synthesis",
           role: "writer",
           title: "Compare and recommend",
           instructions: `Combine the research into a comparison and a recommendation for this goal: ${goal}`,
-          dependsOn: research.map((task) => task.id),
+          dependsOn: inputs,
         });
       }
+      // A goal that asks to save or share the result saves the finished report to an app.
+      // Slack and GitHub need a place that the goal does not name, so they are skipped.
+      const writable = (args.sim.apps ?? []).filter((app) => app.write && app.slug !== "slack" && app.slug !== "github");
+      const named = writable.find((app) => goal.toLowerCase().includes(app.name.toLowerCase()));
+      const saveApp = named ?? (/\b(save|send|share|post|draft)\b/i.test(goal) ? writable[0] : undefined);
       // The first attempt sometimes has a mistake, so the repair path runs too.
       if (args.sim.seed.endsWith(":1") && rng.chance(0.15)) nodes[1] = { ...nodes[1], id: nodes[0].id };
 
@@ -188,8 +206,9 @@ export function createSimulatedClient(): LlmClient {
         title: capitalize(subjectOf(goal)),
         rationale: `Split the goal into ${count} research tasks that run in parallel${
           withWriter ? ", then one writing task that combines them" : ""
-        }.`,
+        }${saveApp ? `, and save the report to ${saveApp.name}` : ""}.`,
         nodes,
+        saveTo: saveApp ? { app: saveApp.slug } : null,
       };
       const object = args.schema.parse(plan);
       return {
@@ -214,8 +233,30 @@ export function createSimulatedClient(): LlmClient {
       let text = "";
       let toolCalls: ToolCallRequest[] = [];
 
+      const appCalls = (name: string) =>
+        messages.filter((message) => message.role === "assistant" && message.toolCalls.some((toolCall) => toolCall.name === name)).length;
+      const readable = (sim.apps ?? []).filter((app) => app.read);
+      const writable = (sim.apps ?? []).filter((app) => app.write);
+      const wantsWrite = /\b(save|create|send|post|draft)\b/i.test(`${sim.task?.title ?? ""} ${sim.task?.instructions ?? ""}`);
+
       if (args.role === "assembler") {
         text = sim.instruction ? revisedReport(sim) : reportMarkdown(sim);
+      } else if (args.role === "librarian" && wantsWrite && toolNames.has("app_write") && appCalls("app_write") === 0 && writable.length > 0) {
+        const app = writable[0];
+        const inputs = sim.inputs ?? [];
+        text = `I will save a short summary to ${app.name}.`;
+        toolCalls = [
+          call("app_write", {
+            app: app.slug,
+            title: `${capitalize(subject)}: summary`.slice(0, 120),
+            content: inputs.map((input) => `## ${input.title}\n${input.markdown.split("\n").slice(0, 6).join("\n")}`).join("\n\n") || `Summary of ${subject}.`,
+            ...(app.slug === "slack" ? { target: "#general" } : app.slug === "github" ? { target: "acme/research" } : {}),
+          }),
+        ];
+      } else if (args.role === "librarian" && !wantsWrite && toolNames.has("app_search") && appCalls("app_search") < Math.min(2, readable.length)) {
+        const app = readable[appCalls("app_search")];
+        text = `I will search ${app.name} for ${subject.toLowerCase()}.`;
+        toolCalls = [call("app_search", { app: app.slug, query: subject.split(" ").slice(0, 5).join(" ") })];
       } else if (args.role === "writer" || !toolNames.has("web_search")) {
         const inputs = sim.inputs ?? [];
         const sources = args.role === "writer" ? inputs.flatMap((input) => input.sources) : sourcesFrom(messages);

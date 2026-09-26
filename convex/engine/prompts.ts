@@ -1,10 +1,32 @@
+import { appSpec, type UsableApp } from "../../src/shared/apps";
 import type { Source } from "../../src/shared/events";
+
+/** The apps of the user in plain lines. The librarian also gets the notes of each app. */
+function appLines(apps: readonly UsableApp[], withNotes = false): string[] {
+  return apps.map((app) => {
+    const spec = appSpec(app.slug);
+    const can = [app.read ? "search" : null, app.write && spec.write ? `create ${spec.write.creates}` : null].filter(Boolean);
+    const target = app.write && spec.write?.target ? ` (target: ${spec.write.target})` : "";
+    const notes = withNotes && spec.notes ? `\n  How ${app.name} works: ${spec.notes}` : "";
+    return `- ${app.slug} (${app.name}): ${can.join(", ")}${target}${notes}`;
+  });
+}
 
 // Prompt text built from mission data. The system prompts are in
 // src/shared/agents.ts, so the Agents page shows the same text.
 
-export function planPrompt(goal: string, feedback: string[]): string {
+export function planPrompt(goal: string, feedback: string[], apps: readonly UsableApp[] = []): string {
   const lines = ["Goal:", goal.trim()];
+  const writable = apps.filter((app) => app.write && appSpec(app.slug).write);
+  lines.push(
+    "",
+    apps.length > 0 ? "Connected apps of the user (the librarian can use them):" : "The user has no connected apps. Do not use the librarian role.",
+    ...appLines(apps),
+    "",
+    writable.length > 0
+      ? `Apps that can take the finished report (saveTo.app): ${writable.map((app) => app.slug).join(", ")}.`
+      : "No app can take the finished report, so saveTo is null.",
+  );
   if (feedback.length > 0) {
     lines.push("", "Your last plan was not valid:", ...feedback.map((line) => `- ${line}`), "", "Make a new plan that fixes these problems.");
   }
@@ -17,8 +39,15 @@ function sourceLines(sources: Source[]): string[] {
   return sources.map((item) => `- [${item.title || item.url}](${item.url})`);
 }
 
-export function taskPrompt(args: { goal: string; title: string; instructions: string; dependencies: Dependency[] }): string {
+export function taskPrompt(args: {
+  goal: string;
+  title: string;
+  instructions: string;
+  dependencies: Dependency[];
+  apps?: readonly UsableApp[];
+}): string {
   const lines = ["Mission goal:", args.goal.trim(), "", `Your task: ${args.title}`, args.instructions.trim()];
+  if (args.apps && args.apps.length > 0) lines.push("", "Apps you can use:", ...appLines(args.apps, true));
   const done = args.dependencies.filter((dep) => dep.status === "done");
   const missing = args.dependencies.filter((dep) => dep.status !== "done");
   if (done.length > 0) {

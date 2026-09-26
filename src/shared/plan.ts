@@ -4,14 +4,16 @@ import type { EventInput, NodeStatus, PlanNode } from "./events";
 // Graph rules (tech spec §6.3). The reducer and appendEventsTx both use them,
 // so the UI and the nodes table always agree.
 
-export type NodeRole = "orchestrator" | "researcher" | "writer" | "assembler" | "report" | "revision";
+export type NodeRole = "orchestrator" | "researcher" | "writer" | "librarian" | "assembler" | "report" | "revision";
 
 export const ORCHESTRATOR_ID = "orchestrator";
 export const ASSEMBLER_ID = "assembler";
 export const REPORT_ID = "report";
 export const CRITIC_ID = "critic";
+/** The step after the report that saves it to an app (plan saveTo). It is a librarian with no model. */
+export const SAVE_ID = "save";
 
-export const RESERVED_NODE_IDS: readonly string[] = [ORCHESTRATOR_ID, ASSEMBLER_ID, CRITIC_ID, REPORT_ID];
+export const RESERVED_NODE_IDS: readonly string[] = [ORCHESTRATOR_ID, ASSEMBLER_ID, CRITIC_ID, REPORT_ID, SAVE_ID];
 export const PLAN_NODE_ID_PATTERN = /^[a-z0-9-]{1,32}$/;
 const REVISION_ID_PATTERN = /^revision-\d+$/;
 
@@ -30,7 +32,7 @@ export function revisionNodeId(n: number): string {
 }
 
 export function isWorkerRole(role: NodeRole): boolean {
-  return role === "researcher" || role === "writer";
+  return role === "researcher" || role === "writer" || role === "librarian";
 }
 
 /**
@@ -116,7 +118,7 @@ export function edgeId(source: string, target: string): string {
 /** The flow edges of the graph, in node order. */
 export function flowEdges(nodes: readonly GraphNodeRef[]): FlowEdge[] {
   const ids = new Set(nodes.map((node) => node.id));
-  const workers = nodes.filter((node) => isWorkerRole(node.role));
+  const workers = nodes.filter((node) => isWorkerRole(node.role) && node.id !== SAVE_ID);
   const needed = new Set(workers.flatMap((node) => node.dependsOn));
   const edges: FlowEdge[] = [];
   const add = (source: string, target: string) => {
@@ -131,6 +133,7 @@ export function flowEdges(nodes: readonly GraphNodeRef[]): FlowEdge[] {
     if (!needed.has(worker.id)) add(worker.id, ASSEMBLER_ID);
   }
   add(ASSEMBLER_ID, REPORT_ID);
+  add(REPORT_ID, SAVE_ID);
   for (const node of nodes) {
     if (node.role === "revision") add(REPORT_ID, node.id);
   }

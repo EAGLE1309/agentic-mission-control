@@ -1,12 +1,11 @@
 "use node";
 
-import { Composio } from "@composio/core";
-import { createHash } from "node:crypto";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, type ActionCtx } from "./_generated/server";
 import { isAppSlug } from "../src/shared/apps";
 import { appError } from "../src/shared/errors";
+import { composioClient as client, composioUserIdFor } from "./lib/composio";
 
 // Third-party apps through Composio (design §6.8). Composio runs the OAuth
 // flow and holds the tokens. This app keeps only which apps each user
@@ -16,15 +15,7 @@ async function currentUser(ctx: ActionCtx) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw appError("UNAUTHENTICATED");
   const userId = identity.tokenIdentifier;
-  // Composio sees an opaque key, not the auth issuer or the user ID.
-  const composioUserId = `mc_${createHash("sha256").update(userId).digest("hex").slice(0, 32)}`;
-  return { userId, composioUserId };
-}
-
-function client(): Composio {
-  const apiKey = process.env.COMPOSIO_API_KEY;
-  if (!apiKey) throw appError("APP_NOT_CONFIGURED");
-  return new Composio({ apiKey, allowTracking: false });
+  return { userId, composioUserId: composioUserIdFor(userId) };
 }
 
 /** Start the OAuth flow of one app. The browser goes to the returned URL. */

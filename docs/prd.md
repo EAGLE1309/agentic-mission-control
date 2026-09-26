@@ -18,9 +18,8 @@ Most agent products show only a spinner. Mission Control shows the process. In v
 ## 3. Not in scope
 
 - Billing and payments.
-- Agents that read third-party apps in a mission. v1 lets a user connect apps through Composio (FR-29); agents use them in a later version.
 - Native mobile apps. The web app works on mobile, but desktop is the primary target.
-- Agents that change things outside the app, for example: send email, post, or buy.
+- Agents that edit, delete, send, or buy outside the app. The one exception is app write (FR-29): the Librarian creates new items (a page, document, issue, message, or email draft) only in apps where the user turned on Write.
 - General chat. Each conversation is a mission.
 
 ## 4. Users
@@ -36,7 +35,7 @@ Most agent products show only a spinner. Mission Control shows the process. In v
 - **Model quota:** OpenRouter free models allow 20 requests each minute and 1,000 each day. The owner account has this tier ($10 credits). All users share this one account.
 - **Mission cost:** One mission uses approximately 25–40 model calls. Thus the app can run approximately 25–40 missions each day for all users together.
 - **Free models:** They change often, and their tool calls are not always correct. The app must continue when a model disappears or gives bad output.
-- **Search quota:** The Tavily free tier gives 1,000 searches each month for all users.
+- **Search quota:** Three search services have free plans without a card: Linkup (approximately 4,000 searches each month), Exa ($10 of searches each month), and Tavily (1,000 searches each month). The quotas are for all users together.
 - **Long runs:** A mission takes minutes. It must continue when the user closes the tab.
 
 ## 6. Terms
@@ -110,12 +109,12 @@ The v1 target: the full loop works from end to end, and each screen is complete.
 - **FR-26** The missions list shows the title, status, duration, tokens, and date. The user can search and filter by status.
 - **FR-27** The Inbox shows a notification when a mission completes or fails. Each notification is read or unread.
 - **FR-28** The Usage page shows the missions that remain today. It also shows the totals of missions and tokens for the user.
-- **FR-29** The Integrations page shows the built-in tools, the services the agents use (models, web, sign-in) with their setup state, and third-party apps that the user connects and disconnects through Composio. The Agents page shows the roles: descriptions, models, and prompts. The user cannot edit tools or roles.
+- **FR-29** The Integrations page shows the built-in tools, the services the agents use (models, web, sign-in) with their setup state, and third-party apps that the user connects and disconnects through Composio. For each connected app, the user turns Read (the Librarian searches it) and Write (the Librarian creates new items there) on and off. The Librarian joins a mission when the goal needs the user's own data or asks to save something. The Agents page shows the roles: descriptions, models, and prompts. The user cannot edit tools or roles.
 
 ### 7.8 Quality
 
 - **FR-30** Each screen has a loading state, an empty state, and an error state. No screen is blank.
-- **FR-31** Simulated mode runs scripted missions for developers. It does not call OpenRouter or Tavily.
+- **FR-31** Simulated mode runs scripted missions for developers. It does not call OpenRouter or a search service.
 
 ## 8. v2 requirements
 

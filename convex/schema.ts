@@ -7,6 +7,7 @@ import {
   missionStatus,
   modelProfile,
   nodeStatus,
+  saveTo,
   source,
   taskRole,
 } from "../src/shared/events";
@@ -42,6 +43,8 @@ export default defineSchema({
     endedAt: v.optional(v.number()),
     /** Duration of the first run, kept for revisions. */
     durationMs: v.optional(v.number()),
+    /** The app that gets the finished report, from the plan. */
+    saveTo: v.optional(saveTo),
     lastActivityAt: v.number(),
   })
     .index("by_userId", ["userId"])
@@ -122,6 +125,10 @@ export default defineSchema({
     toolkit: v.string(),
     connectedAccountId: v.string(),
     connectedAt: v.number(),
+    /** Agents may search the app. Missing means on. */
+    read: v.optional(v.boolean()),
+    /** Agents may create items in the app. Missing means off. */
+    write: v.optional(v.boolean()),
   }).index("by_userId_and_toolkit", ["userId", "toolkit"]),
 
   /** Live thought text of each task. Not in the event log, so replay does not show it. */

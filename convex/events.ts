@@ -85,6 +85,7 @@ export async function appendEventsTx(
         const errors = validatePlan(event.payload.nodes);
         if (errors.length > 0) throw new Error(`plan_created has a plan that is not valid: ${errors.join(" ")}`);
         patch.title = event.payload.title;
+        if (event.payload.saveTo) patch.saveTo = event.payload.saveTo;
         for (const node of event.payload.nodes) await insertNode(node);
         break;
       }

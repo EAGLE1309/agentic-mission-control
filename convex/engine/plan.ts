@@ -3,6 +3,7 @@ import { z } from "zod";
 import { internal } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 import { ORCHESTRATOR_PROMPT } from "../../src/shared/agents";
+import { appSpec, type UsableApp } from "../../src/shared/apps";
 import { PLAN_REPAIR_ATTEMPTS } from "../../src/shared/constants";
 import { ORCHESTRATOR_ID, validatePlan } from "../../src/shared/plan";
 import { emit, errorMessage } from "./emit";
@@ -22,7 +23,7 @@ const planSchema = z.object({
     .array(
       z.object({
         id: z.string().trim(),
-        role: z.enum(["researcher", "writer"]),
+        role: z.enum(["researcher", "writer", "librarian"]),
         title: z.string().trim().max(200),
         instructions: z.string().trim().max(4_000),
         dependsOn: z.array(z.string().trim()).default([]),
@@ -30,7 +31,27 @@ const planSchema = z.object({
     )
     .min(1)
     .max(12),
+  saveTo: z
+    .object({ app: z.string().trim(), target: z.string().trim().max(200).nullish() })
+    .nullish(),
 });
+
+/** Plan errors for saveTo, in plain words for the model. */
+function saveToErrors(saveTo: z.infer<typeof planSchema>["saveTo"], apps: readonly UsableApp[]): string[] {
+  if (!saveTo) return [];
+  const writable = apps.filter((app) => app.write && appSpec(app.slug).write);
+  const app = writable.find((item) => item.slug === saveTo.app);
+  if (!app) {
+    return [
+      writable.length > 0
+        ? `saveTo.app "${saveTo.app}" cannot take the report. Use one of: ${writable.map((item) => item.slug).join(", ")}, or null.`
+        : "No app can take the report, so set saveTo to null.",
+    ];
+  }
+  const write = appSpec(app.slug).write;
+  if (write?.needsTarget && !saveTo.target) return [`saveTo.target is needed for ${app.name}: ${write.target}. If the goal does not name it, set saveTo to null.`];
+  return [];
+}
 
 function shorten(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
@@ -68,9 +89,9 @@ export const run = internalAction({
           // The plan keeps one call of the budget free for the assembler.
           acquire: callGate(ctx, { missionId, nodeId: ORCHESTRATOR_ID, attempt: 1, model, keep: 1 }),
           system: ORCHESTRATOR_PROMPT,
-          prompt: planPrompt(context.goal, feedback),
+          prompt: planPrompt(context.goal, feedback, context.apps),
           schema: planSchema,
-          sim: { seed: `${missionId}:orchestrator:${attempt}`, goal: context.goal },
+          sim: { seed: `${missionId}:orchestrator:${attempt}`, goal: context.goal, apps: context.apps },
         });
         step += 1;
         const usage = {
@@ -85,6 +106,10 @@ export const run = internalAction({
         };
         const plan = result.object;
         const errors = validatePlan(plan.nodes);
+        if (context.apps.length === 0 && plan.nodes.some((node) => node.role === "librarian")) {
+          errors.push('The user has no connected apps, so do not use the "librarian" role. Use "researcher".');
+        }
+        errors.push(...saveToErrors(plan.saveTo, context.apps));
 
         if (errors.length === 0) {
           const rationale = shorten(plan.rationale || `Split the goal into ${plan.nodes.length} tasks.`, 500);
@@ -104,6 +129,9 @@ export const run = internalAction({
                   instructions: node.instructions || node.title,
                   dependsOn: node.dependsOn,
                 })),
+                ...(plan.saveTo
+                  ? { saveTo: { app: plan.saveTo.app, ...(plan.saveTo.target ? { target: plan.saveTo.target } : {}) } }
+                  : {}),
               },
             },
             {

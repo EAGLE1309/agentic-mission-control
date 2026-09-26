@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { components } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "../_generated/server";
+import { usableAppsFor } from "../apps";
 import { appendEventsTx } from "../events";
 import { limits } from "../limits";
 import {
@@ -52,7 +53,7 @@ export const planContext = internalQuery({
   args: { missionId: v.id("missions") },
   handler: async (ctx, args) => {
     const mission = await ctx.db.get("missions", args.missionId);
-    return mission ? base(mission) : null;
+    return mission ? { ...base(mission), apps: await usableAppsFor(ctx, mission.userId) } : null;
   },
 });
 
@@ -79,6 +80,9 @@ export const workerContext = internalQuery({
     }
     return {
       ...base(mission),
+      userId: mission.userId,
+      // Only the librarian uses apps. Other workers never see them.
+      apps: node.role === "librarian" ? await usableAppsFor(ctx, mission.userId) : [],
       node: {
         nodeId: node.nodeId,
         role: node.role,
@@ -126,6 +130,27 @@ export const assembleContext = internalQuery({
       previousReport: latest ? clip(stripSources(latest.markdown), REPORT_INPUT_MAX_CHARS) : null,
       previousSources: latest?.sources ?? [],
       instruction: revision?.instructions ?? null,
+    };
+  },
+});
+
+/** The save step: the app of the plan, the latest report, and the apps of the user. Null when the plan saves nothing. */
+export const saveContext = internalQuery({
+  args: { missionId: v.id("missions") },
+  handler: async (ctx, args) => {
+    const mission = await ctx.db.get("missions", args.missionId);
+    if (!mission?.saveTo) return null;
+    const latest = await ctx.db
+      .query("deliverables")
+      .withIndex("by_missionId_and_version", (q) => q.eq("missionId", args.missionId))
+      .order("desc")
+      .first();
+    return {
+      ...base(mission),
+      userId: mission.userId,
+      saveTo: mission.saveTo,
+      report: latest ? { version: latest.version, words: latest.words, markdown: latest.markdown } : null,
+      apps: await usableAppsFor(ctx, mission.userId),
     };
   },
 });
@@ -181,10 +206,10 @@ export const beginCall = internalMutation({
   },
 });
 
-/** Take one web search from the daily Tavily cap (tech spec §8). */
+/** Take one web search from the daily cap of a search service (tech spec §8). */
 export const takeSearch = internalMutation({
-  args: {},
-  handler: async (ctx): Promise<boolean> => (await limits.limit(ctx, "tavilyDay")).ok,
+  args: { service: v.union(v.literal("linkup"), v.literal("exa"), v.literal("tavily")) },
+  handler: async (ctx, args): Promise<boolean> => (await limits.limit(ctx, `${args.service}Day` as const)).ok,
 });
 
 /** A worker step threw (timeout or crash). Fail the node, so the mission goes on. */
@@ -239,12 +264,15 @@ async function addInboxItem(ctx: MutationCtx, mission: Doc<"missions">, kind: "m
   await ctx.db.insert("inboxItems", { userId: mission.userId, kind, missionId: mission._id });
 }
 
-/** The last step of a run: mission_completed and an Inbox item (tech spec §7.1). */
-export async function finishTx(ctx: MutationCtx, args: { missionId: Id<"missions">; notify: boolean }) {
+/**
+ * The last step of a run: mission_completed and an Inbox item (tech spec §7.1).
+ * `partial` also marks a report that the save step could not save.
+ */
+export async function finishTx(ctx: MutationCtx, args: { missionId: Id<"missions">; notify: boolean; partial?: boolean }) {
   const mission = await ctx.db.get("missions", args.missionId);
   if (!mission || !isMissionActive(mission.status)) return;
   const nodes = await nodesOf(ctx, args.missionId);
-  const partial = nodes.some((row) => row.role !== "revision" && row.status !== "done");
+  const partial = (args.partial ?? false) || nodes.some((row) => row.role !== "revision" && row.status !== "done");
   const durationMs = mission.durationMs ?? Math.max(0, Math.round(Date.now() - mission._creationTime));
   await appendEventsTx(ctx, args.missionId, [
     { type: "mission_completed", payload: { partial, stats: mission.stats, durationMs } },
@@ -254,7 +282,7 @@ export async function finishTx(ctx: MutationCtx, args: { missionId: Id<"missions
 }
 
 export const finish = internalMutation({
-  args: { missionId: v.id("missions"), notify: v.boolean() },
+  args: { missionId: v.id("missions"), notify: v.boolean(), partial: v.optional(v.boolean()) },
   handler: (ctx, args) => finishTx(ctx, args),
 });
 

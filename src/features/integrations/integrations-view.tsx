@@ -1,7 +1,15 @@
 "use client";
 
 import { api } from "@convex/_generated/api";
-import { IconCheck, IconChevronDown, IconCircleCheck, IconLayoutGrid, IconPlugConnectedX, type Icon } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconChevronDown,
+  IconCircleCheck,
+  IconLayoutGrid,
+  IconPlugConnectedX,
+  IconPlus,
+  type Icon,
+} from "@tabler/icons-react";
 import { useQuery } from "convex/react";
 import { useState, type ReactNode } from "react";
 import { AgentChip } from "@/components/agent-chip";
@@ -29,11 +37,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
 import { TOOLS, agentsUsingTool } from "@/shared/agents";
-import { APPS, APP_CATEGORIES, type AppCategory, type AppSlug } from "@/shared/apps";
+import { APPS, APP_CATEGORIES, appSpec, type AppCategory, type AppSlug } from "@/shared/apps";
 import type { ToolName } from "@/shared/events";
 import { CATALOG_STALE_MS, MODEL_PRESETS } from "@/shared/models";
 import {
@@ -41,8 +50,10 @@ import {
   STATE_BADGE,
   TOOL_UI,
   isLive,
+  poweredBy,
   service,
   toolState,
+  type AppCounts,
   type Service,
   type ServiceStatus,
   type State,
@@ -107,7 +118,7 @@ export function IntegrationsView() {
   }
 
   const openRouterState = service("openrouter").state(status);
-  const readyTools = TOOLS.filter((tool) => isLive(toolState(tool.name, status))).length;
+  const readyTools = TOOLS.filter((tool) => isLive(toolState(tool.name, status, apps.counts))).length;
   const webServices = SERVICES.filter((item) => item.section === "web");
   const signInServices = SERVICES.filter((item) => item.section === "signin");
   const live = {
@@ -171,7 +182,7 @@ export function IntegrationsView() {
             <Section
               id="tools"
               title="Tools"
-              description="Every agent works with these tools. They search the web, read pages, and hand in a section. Nothing outside Mission Control changes."
+              description="The tools of the agents. They search the web and your apps, read pages, and hand in a section. Only App write changes something outside Mission Control, and only in apps you allow."
               summary={
                 <span className="text-sm text-muted-foreground tabular-nums">
                   {readyTools} of {TOOLS.length} ready
@@ -179,9 +190,9 @@ export function IntegrationsView() {
               }
             >
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {TOOLS.filter((tool) => !onlyLive || isLive(toolState(tool.name, status))).map((tool) => (
+                {TOOLS.filter((tool) => !onlyLive || isLive(toolState(tool.name, status, apps.counts))).map((tool) => (
                   <li key={tool.name} className="flex">
-                    <ToolCard tool={tool.name} status={status} />
+                    <ToolCard tool={tool.name} status={status} appCounts={apps.counts} />
                   </li>
                 ))}
               </ul>
@@ -219,7 +230,11 @@ export function IntegrationsView() {
           )}
 
           {show("web", live.web) && (
-            <Section id="web" title="Web" description="Two services give Web search and Page reader their data.">
+            <Section
+              id="web"
+              title="Web"
+              description="Web search uses the first service with searches left: Linkup, then Exa, then Tavily. Jina Reader gives Page reader its text."
+            >
               <RowList>
                 {webServices
                   .filter((item) => !onlyLive || isLive(item.state(status)))
@@ -241,8 +256,9 @@ export function IntegrationsView() {
                     <BrandMark brand="composio" className="size-3.5" />
                     Composio
                   </span>
-                  . Composio runs the sign-in and keeps the tokens, so Mission Control never stores them. Agents can&apos;t read
-                  connected apps yet. That comes next.
+                  . Composio runs the sign-in and keeps the tokens. The Librarian agent searches the apps you allow to Read, and
+                  creates pages, issues, or drafts only in apps you allow to Write. It never edits or deletes. What it reads goes
+                  to the model of the mission.
                 </>
               }
               summary={
@@ -263,6 +279,7 @@ export function IntegrationsView() {
                         mark={<AppMark slug={app.slug} />}
                         name={app.name}
                         blurb={app.blurb}
+                        extra={<AppAccess slug={app.slug} apps={apps} />}
                         action={<AppAction slug={app.slug} name={app.name} composio={status.composio} apps={apps} />}
                       />
                     ))}
@@ -386,12 +403,15 @@ function Row({
   name,
   blurb,
   note,
+  extra,
   action,
 }: {
   mark: ReactNode;
   name: string;
   blurb: string;
   note?: string;
+  /** A line under the text, for example the access chips of an app. */
+  extra?: ReactNode;
   action: ReactNode;
 }) {
   return (
@@ -401,6 +421,7 @@ function Row({
         <span className="truncate text-sm font-medium text-foreground">{name}</span>
         <span className="text-xs text-pretty text-muted-foreground">{blurb}</span>
         {note && <span className="text-xs text-pretty text-muted-foreground">{note}</span>}
+        {extra}
       </span>
       <span className="shrink-0">{action}</span>
     </li>
@@ -465,6 +486,66 @@ function SetupButton({ name, env, label = "Set up" }: { name: string; env: strin
   );
 }
 
+/**
+ * What agents may do in an app. Connected: Read and Write chips that turn on
+ * and off. Not connected: what the app supports.
+ */
+function AppAccess({ slug, apps }: { slug: AppSlug; apps: ReturnType<typeof useApps> }) {
+  const spec = appSpec(slug);
+  const access = apps.access.get(slug);
+  if (!access) {
+    const can = [spec.search ? "Search" : null, spec.write ? `create ${spec.write.creates}` : null].filter(Boolean).join(" and ");
+    return <span className="text-xs text-muted-foreground">{can ? `Librarian: ${can.charAt(0).toUpperCase()}${can.slice(1)}` : "Connect only for now"}</span>;
+  }
+  if (!spec.search && !spec.write) return <span className="text-xs text-muted-foreground">Agents can&apos;t use this app yet</span>;
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label={`What agents may do in ${spec.name}`}>
+      {spec.search && (
+        <AccessChip
+          label="Read"
+          hint={`The Librarian searches ${spec.name}.`}
+          on={access.read}
+          onChange={(read) => void apps.setAccess(slug, { ...access, read })}
+        />
+      )}
+      {spec.write && (
+        <AccessChip
+          label="Write"
+          hint={`The Librarian creates ${spec.write.creates} in ${spec.name} when a goal asks. It never edits or deletes.`}
+          on={access.write}
+          onChange={(write) => void apps.setAccess(slug, { ...access, write })}
+        />
+      )}
+    </span>
+  );
+}
+
+function AccessChip({ label, hint, on, onChange }: { label: string; hint: string; on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(!on)}
+            className={cn(
+              "inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium transition-[background-color,color,box-shadow] duration-150",
+              on
+                ? "bg-live-subtle text-live ring-1 ring-live-border/60 ring-inset"
+                : "bg-muted text-muted-foreground hover:text-foreground",
+            )}
+          />
+        }
+      >
+        {on ? <IconCheck aria-hidden className="size-3" /> : <IconPlus aria-hidden className="size-3" />}
+        {label}
+      </TooltipTrigger>
+      <TooltipContent>{on ? hint : `Off. ${hint}`}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function AppAction({
   slug,
   name,
@@ -510,11 +591,11 @@ function AppAction({
   );
 }
 
-function ToolCard({ tool, status }: { tool: ToolName; status: ServiceStatus }) {
+function ToolCard({ tool, status, appCounts }: { tool: ToolName; status: ServiceStatus; appCounts: AppCounts }) {
   const ui = TOOL_UI[tool];
   const spec = TOOLS.find((item) => item.name === tool);
   const ToolIcon = TOOL_ICON[tool];
-  const poweredBy = ui.poweredBy ? service(ui.poweredBy) : null;
+  const services = poweredBy(tool, status);
   const agents = agentsUsingTool(tool);
   return (
     <article className="flex w-full flex-col gap-3 rounded-xl bg-card p-4 shadow-raised">
@@ -522,7 +603,7 @@ function ToolCard({ tool, status }: { tool: ToolName; status: ServiceStatus }) {
         <span className="flex size-10 items-center justify-center rounded-lg bg-live-subtle ring-1 ring-live-border/60 ring-inset">
           <ToolIcon aria-hidden className="size-5 text-live" />
         </span>
-        <StateBadge state={toolState(tool, status)} />
+        <StateBadge state={toolState(tool, status, appCounts)} />
       </div>
       <div className="flex flex-col gap-1">
         <h3 className="flex items-baseline gap-2 text-sm font-medium text-foreground">
@@ -538,10 +619,13 @@ function ToolCard({ tool, status }: { tool: ToolName; status: ServiceStatus }) {
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
         <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          {poweredBy ? (
+          {services.length > 0 ? (
             <>
-              Powered by <BrandMark brand={poweredBy.brand} className="size-3.5" />
-              <span className="truncate text-foreground">{poweredBy.name}</span>
+              Powered by
+              {services.map((item) => (
+                <BrandMark key={item.brand} brand={item.brand} className="size-3.5" />
+              ))}
+              <span className="truncate text-foreground">{services.map((item) => item.name).join(", ")}</span>
             </>
           ) : (
             "Built in"

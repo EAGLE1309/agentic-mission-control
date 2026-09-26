@@ -30,12 +30,14 @@ export const MODEL_PRESETS: Record<ModelProfile, ModelChains> = {
       "openrouter/free",
     ],
     writer: ["nvidia/nemotron-3-ultra-550b-a55b:free", "google/gemma-4-31b-it:free", "thinkingmachines/inkling:free"],
+    librarian: ["nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "thinkingmachines/inkling:free"],
     assembler: ["nvidia/nemotron-3-ultra-550b-a55b:free", "thinkingmachines/inkling:free", "google/gemma-4-31b-it:free"],
   },
   fast: {
     orchestrator: ["nvidia/nemotron-3.5-lightning:free", "thinkingmachines/inkling-small:free", "google/gemma-4-31b-it:free"],
     researcher: ["nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free", "openrouter/free"],
     writer: ["nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free", "thinkingmachines/inkling:free"],
+    librarian: ["nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free", "thinkingmachines/inkling:free"],
     assembler: ["thinkingmachines/inkling-small:free", "nvidia/nemotron-3.5-lightning:free", "google/gemma-4-31b-it:free"],
   },
 };
@@ -51,6 +53,7 @@ export const ROLE_MODELS_ENV: Record<AgentRole, string> = {
   orchestrator: "OPENROUTER_MODELS_ORCHESTRATOR",
   researcher: "OPENROUTER_MODELS_RESEARCHER",
   writer: "OPENROUTER_MODELS_WRITER",
+  librarian: "OPENROUTER_MODELS_LIBRARIAN",
   assembler: "OPENROUTER_MODELS_ASSEMBLER",
 };
 
@@ -88,12 +91,13 @@ export function effectiveChains(profile: ModelProfile, overrides: ModelOverrides
     orchestrator: overrides.orchestrator ?? preset.orchestrator,
     researcher: overrides.researcher ?? preset.researcher,
     writer: overrides.writer ?? preset.writer,
+    librarian: overrides.librarian ?? preset.librarian,
     assembler: overrides.assembler ?? preset.assembler,
   };
 }
 
 /** Roles that call tools need models with tool support. */
-export const ROLES_WITH_TOOLS: readonly AgentRole[] = ["researcher", "writer"];
+export const ROLES_WITH_TOOLS: readonly AgentRole[] = ["researcher", "writer", "librarian"];
 
 /** A catalog model that has not been in the list for this long is skipped. */
 export const CATALOG_STALE_MS = 48 * 60 * 60 * 1000;

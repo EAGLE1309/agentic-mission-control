@@ -24,6 +24,8 @@ const TOOL_LABEL: Record<ToolName, string> = {
   web_search: "Searches the web",
   fetch_url: "Reads web pages",
   write_section: "Writes its section",
+  app_search: "Searches your apps",
+  app_write: "Creates pages and drafts in your apps",
 };
 
 const PROFILES: { value: ModelProfile; label: string }[] = [
@@ -64,8 +66,8 @@ export function AgentsView() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6 md:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <p className="max-w-xl text-sm text-pretty text-muted-foreground">
-          Four agents work on each mission. Each one has a job and its tools. When a model is busy or fails, the agent
-          moves to the next model in its list.
+          The orchestrator plans each mission and hands the tasks to the other agents. The Librarian joins when you connect
+          apps. When a model is busy or fails, the agent moves to the next model in its list.
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <span id="agents-model-label" className="text-xs text-muted-foreground">

@@ -1,12 +1,12 @@
 "use client";
 
 import { api } from "@convex/_generated/api";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { toastTimeout } from "@/features/shell/finish-toasts";
-import { APPS, isAppSlug, type AppSlug } from "@/shared/apps";
+import { APPS, appSpec, isAppSlug, type AppSlug } from "@/shared/apps";
 import { errorCode } from "@/shared/errors";
 
 // Third-party apps through Composio (design §6.8). Connect goes to the Composio
@@ -29,6 +29,17 @@ export function useApps(composio: boolean | undefined) {
   const connectAction = useAction(api.composio.connect);
   const disconnectAction = useAction(api.composio.disconnect);
   const syncAction = useAction(api.composio.sync);
+  // The chips change at once; the server confirms, or they flip back on an error.
+  const setAccessMutation = useMutation(api.apps.setAccess).withOptimisticUpdate((store, args) => {
+    const current = store.getQuery(api.apps.connections, {});
+    if (current) {
+      store.setQuery(
+        api.apps.connections,
+        {},
+        current.map((row) => (row.toolkit === args.toolkit ? { ...row, read: args.read, write: args.write } : row)),
+      );
+    }
+  });
   const router = useRouter();
   const [busy, setBusy] = useState<AppSlug | null>(null);
   const synced = useRef(false);
@@ -75,6 +86,25 @@ export function useApps(composio: boolean | undefined) {
     }
   };
 
+  /** Turn search or creating items on or off for one app. */
+  const setAccess = async (slug: AppSlug, next: { read: boolean; write: boolean }) => {
+    try {
+      await setAccessMutation({ toolkit: slug, ...next });
+    } catch {
+      notify(`The access of ${APP_NAME.get(slug) ?? slug} did not change. Try again.`);
+    }
+  };
+
   const connected = new Set((rows ?? []).map((row) => row.toolkit).filter(isAppSlug));
-  return { connected, loading: rows === undefined, busy, connect, disconnect };
+  const access = new Map<AppSlug, { read: boolean; write: boolean }>();
+  for (const row of rows ?? []) {
+    if (!isAppSlug(row.toolkit)) continue;
+    const spec = appSpec(row.toolkit);
+    access.set(row.toolkit, { read: spec.search && row.read, write: spec.write !== undefined && row.write });
+  }
+  const counts = {
+    read: [...access.values()].filter((item) => item.read).length,
+    write: [...access.values()].filter((item) => item.write).length,
+  };
+  return { connected, access, counts, loading: rows === undefined, busy, connect, disconnect, setAccess };
 }

@@ -2,6 +2,7 @@ import { WorkflowManager, vResultValidator, vWorkflowId } from "@convex-dev/work
 import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
+import { SAVE_ID } from "../../src/shared/plan";
 import { failMissionTx, failNodeTx, finishTx } from "./state";
 
 // The mission workflow (tech spec §7.1). Workflow code is deterministic: it
@@ -44,7 +45,20 @@ export const missionWorkflow = workflow
 
     const assembled = await step.runAction(internal.engine.assemble.run, { missionId }, { name: "assemble" });
     if (!assembled.ok) return;
-    await step.runMutation(internal.engine.state.finish, { missionId, notify: true }, { name: "finish" });
+    // The plan can ask to save the finished report to an app. A failed save
+    // keeps the report and marks the mission partial.
+    const saved = await step.runAction(internal.engine.save.run, { missionId }, { name: "save" }).catch(async () => {
+      await step.runMutation(
+        internal.events.appendEvents,
+        {
+          missionId,
+          events: [{ type: "node_failed", nodeId: SAVE_ID, payload: { error: "The save stopped responding.", retryable: false, attempt: 1 } }],
+        },
+        { name: "save-failed" },
+      );
+      return { ok: false };
+    });
+    await step.runMutation(internal.engine.state.finish, { missionId, notify: true, partial: !saved.ok }, { name: "finish" });
   });
 
 /** A revision (FR-25): the assembler writes the next version, then the mission completes again. */

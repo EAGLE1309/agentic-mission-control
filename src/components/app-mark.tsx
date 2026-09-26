@@ -20,7 +20,7 @@ import type { AppSlug } from "@/shared/apps";
 
 // Marks of the third-party apps (design §4.1), in their original colors. A
 // mark that is black in its brand (GitHub, Notion) uses mono and the text
-// color, so it shows in dark mode. Only the Integrations page imports this.
+// color, so it shows in dark mode. The Integrations page and the app tool rows use it.
 
 export function AppMark({ slug, className }: { slug: AppSlug; className?: string }) {
   const size = cn("size-5 shrink-0", className);

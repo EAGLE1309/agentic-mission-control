@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { AgentRole } from "../../../src/shared/agents";
+import type { UsableApp } from "../../../src/shared/apps";
 import type { MissionMode, Source, TaskRole, ToolName } from "../../../src/shared/events";
 
 // The model layer (tech spec §7.2). The engine talks only to LlmClient.
@@ -33,6 +34,8 @@ export type SimContext = {
   planTitle?: string;
   instruction?: string;
   previousReport?: string;
+  /** Apps of the user: the planner may add a librarian task, and the librarian uses them. */
+  apps?: UsableApp[];
 };
 
 export type StepArgs = {

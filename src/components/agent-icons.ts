@@ -1,6 +1,9 @@
 import {
+  IconApps,
   IconArrowsJoin,
+  IconBooks,
   IconFilePencil,
+  IconFilePlus,
   IconFileText,
   IconPencil,
   IconRefresh,
@@ -21,6 +24,7 @@ export const ROLE_ICON: Record<NodeRole, Icon> = {
   orchestrator: IconSitemap,
   researcher: IconTelescope,
   writer: IconPencil,
+  librarian: IconBooks,
   assembler: IconArrowsJoin,
   report: IconFileText,
   revision: IconRefresh,
@@ -31,6 +35,7 @@ export const ROLE_LABEL: Record<NodeRole, string> = {
   orchestrator: "Orchestrator",
   researcher: "Researcher",
   writer: "Writer",
+  librarian: "Librarian",
   assembler: "Assembler",
   report: "Report",
   revision: "Revision",
@@ -40,6 +45,8 @@ export const TOOL_ICON: Record<ToolName, Icon> = {
   web_search: IconWorldSearch,
   fetch_url: IconWorldDownload,
   write_section: IconFilePencil,
+  app_search: IconApps,
+  app_write: IconFilePlus,
 };
 
 export function toolCallStatusKind(status: ToolCallStatus): StatusKind {

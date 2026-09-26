@@ -4,7 +4,9 @@ import { IconCircleX, IconFileText } from "@tabler/icons-react";
 import { memo } from "react";
 import { AgentChip } from "@/components/agent-chip";
 import { ROLE_LABEL, TOOL_ICON, toolCallStatusKind } from "@/components/agent-icons";
+import { AppMark } from "@/components/app-mark";
 import { Favicon, FaviconStack } from "@/components/favicon";
+import { appSpec, type AppSlug } from "@/shared/apps";
 import { StatusIcon, missionStatusKind, nodeStatusKind, statusSpec } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,8 +16,8 @@ import { useNow } from "@/hooks/use-now";
 import { formatDuration, formatLatency, formatTokens } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isMissionActive } from "@/shared/events";
-import { isWorkerRole } from "@/shared/plan";
-import { toolInputSummary } from "./tool-summary";
+import { SAVE_ID, isWorkerRole } from "@/shared/plan";
+import { toolCallApp, toolInputSummary } from "./tool-summary";
 
 // The stream items (FR-21, design §6.3), top to bottom.
 
@@ -156,9 +158,12 @@ const ActivityRow = memo(function ActivityRow({ callId }: { callId: string }) {
         <ToolIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="shrink-0 font-mono text-xs text-foreground">{call.tool}</span>
         {call.tool === "fetch_url" && call.urls[0] && <Favicon site={call.urls[0]} />}
+        {toolCallApp(call.tool, call.inputPreview) && (
+          <AppMark slug={toolCallApp(call.tool, call.inputPreview) as AppSlug} className="size-3.5" />
+        )}
         <span className="min-w-0 truncate text-xs text-muted-foreground">{summary}</span>
-        {call.tool === "web_search" && <FaviconStack sites={call.urls} className="ml-auto" />}
-        <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", call.tool !== "web_search" || call.urls.length === 0 ? "ml-auto" : "")}>
+        {(call.tool === "web_search" || call.tool === "app_search") && <FaviconStack sites={call.urls} className="ml-auto" />}
+        <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", (call.tool !== "web_search" && call.tool !== "app_search") || call.urls.length === 0 ? "ml-auto" : "")}>
           {call.durationMs !== null ? formatLatency(call.durationMs) : ""}
         </span>
       </button>
@@ -166,19 +171,39 @@ const ActivityRow = memo(function ActivityRow({ callId }: { callId: string }) {
   );
 });
 
-/** 5. Report card. It opens the Report tab. */
+/** 5. Report card. It opens the Report tab, and the saved copy when the plan saved the report to an app. */
 export function ReportCard() {
   const latest = useRun((state) => state.view.versions.at(-1));
+  const savedUrl = useRun((state) => {
+    const node = state.view.nodes[SAVE_ID];
+    return node?.status === "done" ? (node.sources[0]?.url ?? null) : null;
+  });
+  const savedApp = useRun((state) => {
+    const call = Object.values(state.view.toolCalls).find((item) => item.nodeId === SAVE_ID);
+    return call ? toolCallApp(call.tool, call.inputPreview) : null;
+  });
   const setTab = useRun((state) => state.setTab);
   const setMobilePane = useRun((state) => state.setMobilePane);
   const setVersion = useRun((state) => state.setVersion);
   if (!latest) return null;
+  const savedName = savedApp ? appSpec(savedApp).name : "app";
   return (
     <div className="flex items-center gap-3 rounded-lg bg-card p-3 shadow-raised animate-in fade-in-0 duration-200 ease-out">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-live-subtle ring-1 ring-live-border/60 ring-inset">
         <IconFileText aria-hidden className="size-4 text-live" />
       </span>
       <span className="min-w-0 flex-1 truncate text-sm text-foreground">Report v{latest.version} is ready</span>
+      {savedUrl && (
+        <Button
+          variant="ghost"
+          size="sm"
+          title={`The copy of the report in ${savedName}`}
+          render={<a href={savedUrl} target="_blank" rel="noreferrer" />}
+        >
+          {savedApp && <AppMark slug={savedApp} className="size-3.5" />}
+          Open in {savedName}
+        </Button>
+      )}
       <Button
         variant="outline"
         size="sm"
@@ -193,3 +218,4 @@ export function ReportCard() {
     </div>
   );
 }
+

@@ -8,7 +8,8 @@ import { Mark } from "@/components/mark";
 import { BrandMark } from "@/components/provider-mark";
 import { cn } from "@/lib/utils";
 import type { AppSlug } from "@/shared/apps";
-import { isLive, service, type ServiceStatus } from "./catalog";
+import { SEARCH_ORDER } from "@/shared/constants";
+import { isLive, searchServices, service, type ServiceStatus } from "./catalog";
 
 // The hero of the Integrations page (design §6.8): the services around the
 // app, drawn like the mission graph. Edges show state (design §1): a moving
@@ -60,6 +61,7 @@ export function ConnectionMap({
   const [ref, width] = useWidth();
   const reduced = useReducedMotion();
   const models = isLive(service("openrouter").state(status));
+  const search = searchServices(status);
   const nodes: MapNode[] = [
     {
       id: "openrouter",
@@ -82,13 +84,15 @@ export function ConnectionMap({
       to: "openrouter",
     },
     {
-      id: "tavily",
+      id: "search",
       x: 0.8,
       y: 0.22,
-      label: "Tavily",
-      sub: "Web search",
-      marks: <BrandMark brand="tavily" className="size-4" />,
-      live: isLive(service("tavily").state(status)),
+      label: "Web search",
+      sub: search.length > 0 ? search.map((item) => item.name).join(", ") : "Not set up",
+      marks: (search.length > 0 ? search.map((item) => item.brand) : SEARCH_ORDER).map((brand) => (
+        <BrandMark key={brand} brand={brand} className="size-3.5" />
+      )),
+      live: search.length > 0,
       to: "hub",
     },
     {

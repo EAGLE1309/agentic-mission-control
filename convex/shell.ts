@@ -33,7 +33,7 @@ export const summary = query({
       .take(RECENT);
 
     // Live dots (FR-5): a role is active while a task with that role runs.
-    const activeRoles = { orchestrator: 0, researcher: 0, writer: 0, assembler: 0 };
+    const activeRoles = { orchestrator: 0, researcher: 0, writer: 0, librarian: 0, assembler: 0 };
     for (const mission of recent) {
       if (mission.status === "planning") activeRoles.orchestrator += 1;
       if (mission.status === "assembling") activeRoles.assembler += 1;
@@ -45,6 +45,7 @@ export const summary = query({
       const running = new Set(nodes.filter((node) => node.status === "running" || node.status === "queued").map((node) => node.role));
       if (running.has("researcher")) activeRoles.researcher += 1;
       if (running.has("writer")) activeRoles.writer += 1;
+      if (running.has("librarian")) activeRoles.librarian += 1;
     }
 
     const window = (value: { value: number; ts: number; config: { rate: number; capacity?: number } }): WindowValue => ({

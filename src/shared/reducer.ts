@@ -1,5 +1,6 @@
 import { produce, type Draft } from "immer";
 import type { GenericId } from "convex/values";
+import { appSpec, isAppSlug } from "./apps";
 import { PACKET_BUFFER, SATELLITE_SITES_MAX } from "./constants";
 import { sourceHost } from "./report";
 import type {
@@ -17,6 +18,7 @@ import {
   ASSEMBLER_ID,
   ORCHESTRATOR_ID,
   REPORT_ID,
+  SAVE_ID,
   edgeId,
   flowEdges,
   isTerminalNodeStatus,
@@ -248,6 +250,18 @@ function applyEvent(state: State, event: MissionEvent): void {
       for (const node of event.payload.nodes) addTaskNode(state, node, false);
       addNode(state, { id: ASSEMBLER_ID, role: "assembler", title: "Write the report", instructions: "", dependsOn: [], isNew: false });
       addNode(state, { id: REPORT_ID, role: "report", title: "Report", instructions: "", dependsOn: [], isNew: false });
+      const saveTo = event.payload.saveTo;
+      if (saveTo) {
+        const app = isAppSlug(saveTo.app) ? appSpec(saveTo.app).name : saveTo.app;
+        addNode(state, {
+          id: SAVE_ID,
+          role: "librarian",
+          title: `Save the report to ${app}`,
+          instructions: `Save the finished report to ${app}${saveTo.target ? `, in ${saveTo.target}` : ""}.`,
+          dependsOn: [REPORT_ID],
+          isNew: false,
+        });
+      }
       rebuildEdges(state);
       return;
     }
@@ -391,7 +405,7 @@ function applyEvent(state: State, event: MissionEvent): void {
       const satellite = state.satellites[satelliteId];
       if (satellite) {
         satellite.running = Math.max(0, satellite.running - 1);
-        if (call.tool === "web_search" && event.payload.urls) addSites(satellite, event.payload.urls);
+        if (call.tool !== "fetch_url" && call.tool !== "write_section" && event.payload.urls) addSites(satellite, event.payload.urls);
       }
       const node = state.nodes[call.nodeId];
       if (node) node.currentTool = runningToolOf(state, node.id);

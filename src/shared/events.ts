@@ -25,12 +25,14 @@ export const nodeStatus = v.union(
 
 export const modelProfile = v.union(v.literal("balanced"), v.literal("fast"));
 export const missionMode = v.union(v.literal("live"), v.literal("simulated"));
-export const workerRole = v.union(v.literal("researcher"), v.literal("writer"));
-export const taskRole = v.union(v.literal("researcher"), v.literal("writer"), v.literal("revision"));
+export const workerRole = v.union(v.literal("researcher"), v.literal("writer"), v.literal("librarian"));
+export const taskRole = v.union(v.literal("researcher"), v.literal("writer"), v.literal("librarian"), v.literal("revision"));
 export const toolName = v.union(
   v.literal("web_search"),
   v.literal("fetch_url"),
   v.literal("write_section"),
+  v.literal("app_search"),
+  v.literal("app_write"),
 );
 
 export const source = v.object({ url: v.string(), title: v.string() });
@@ -43,6 +45,9 @@ export const planNode = v.object({
   instructions: v.string(),
   dependsOn: v.array(v.string()),
 });
+
+/** Where the engine saves the finished report: an app slug, and a place in it when the goal names one. */
+export const saveTo = v.object({ app: v.string(), target: v.optional(v.string()) });
 
 export const taskNode = v.object({
   id: v.string(),
@@ -63,6 +68,7 @@ export type Source = Infer<typeof source>;
 export type MissionStats = Infer<typeof missionStats>;
 export type PlanNode = Infer<typeof planNode>;
 export type TaskNode = Infer<typeof taskNode>;
+export type SaveTo = Infer<typeof saveTo>;
 
 const envelope = {
   missionId: v.id("missions"),
@@ -89,6 +95,8 @@ const planCreated = defineEvent("plan_created", {
   title: v.string(),
   rationale: v.string(),
   nodes: v.array(planNode),
+  /** Older plans have none. */
+  saveTo: v.optional(saveTo),
 });
 const nodesAdded = defineEvent("nodes_added", {
   nodes: v.array(taskNode),

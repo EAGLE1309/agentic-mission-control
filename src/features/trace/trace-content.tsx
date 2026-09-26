@@ -3,7 +3,9 @@
 import { IconChevronRight, IconCircleX, IconClock, IconX } from "@tabler/icons-react";
 import { memo, useEffect, useRef, type ReactNode } from "react";
 import { AgentChip } from "@/components/agent-chip";
+import { AppMark } from "@/components/app-mark";
 import { Favicon, FaviconStack } from "@/components/favicon";
+import type { AppSlug } from "@/shared/apps";
 import { ROLE_ICON, TOOL_ICON, toolCallStatusKind } from "@/components/agent-icons";
 import { ProviderMark, modelName, providerName } from "@/components/provider-mark";
 import { EmptyState } from "@/components/empty-state";
@@ -17,7 +19,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
-import { toolInputSummary } from "@/features/mission-stream/tool-summary";
+import { toolCallApp, toolInputSummary } from "@/features/mission-stream/tool-summary";
 import { useRun } from "@/features/run/store";
 import { useNow } from "@/hooks/use-now";
 import { formatClock, formatDuration, formatLatency, formatTokens, plural } from "@/lib/format";
@@ -183,9 +185,12 @@ const ToolCallRow = memo(function ToolCallRow({ callId }: { callId: string }) {
           <ToolIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="shrink-0 font-mono text-xs text-foreground">{call.tool}</span>
           {call.tool === "fetch_url" && call.urls[0] && <Favicon site={call.urls[0]} />}
+        {toolCallApp(call.tool, call.inputPreview) && (
+          <AppMark slug={toolCallApp(call.tool, call.inputPreview) as AppSlug} className="size-3.5" />
+        )}
           <span className="min-w-0 truncate text-xs text-muted-foreground">{toolInputSummary(call.tool, call.inputPreview)}</span>
-          {call.tool === "web_search" && <FaviconStack sites={call.urls} className="ml-auto" />}
-          <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", call.tool !== "web_search" || call.urls.length === 0 ? "ml-auto" : "")}>
+          {(call.tool === "web_search" || call.tool === "app_search") && <FaviconStack sites={call.urls} className="ml-auto" />}
+          <span className={cn("shrink-0 text-xs text-muted-foreground tabular-nums", (call.tool !== "web_search" && call.tool !== "app_search") || call.urls.length === 0 ? "ml-auto" : "")}>
             {call.durationMs !== null ? formatLatency(call.durationMs) : ""}
           </span>
         </CollapsibleTrigger>
@@ -252,3 +257,4 @@ function TraceFooter({ node }: { node: MissionNode }) {
     </footer>
   );
 }
+
