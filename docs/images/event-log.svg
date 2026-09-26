@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430" role="img" aria-label="How a mission reaches the screen. The Convex engine runs the plan, the waves of tasks, the assembler, and the save step, and writes each thing that happens as an event in an append-only log. The browser reads the log through a reactive query, and one reducer turns it into the live graph, the stream, and the trace. The landing demo feeds a recorded log into the same reducer. The browser sends only intents back: create, stop, and follow-up." font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <style>
+    .mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; }
+    .num { font-variant-numeric: tabular-nums; }
+    .flow { stroke-dasharray: 0.1 6; stroke-linecap: round; animation: flow 0.8s linear infinite; }
+    @keyframes flow { to { stroke-dashoffset: -6.1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .flow { animation: none; }
+      .packet { display: none; }
+    }
+  </style>
+
+  <rect width="960" height="430" rx="16" fill="#0c0d0f"/>
+  <rect x="0.5" y="0.5" width="959" height="429" rx="15.5" fill="none" stroke="#212226"/>
+
+  <!-- Column titles -->
+  <g font-size="13" font-weight="600" fill="#f1f2f3">
+    <text x="24" y="38">Engine</text>
+    <text x="328" y="38">Event log</text>
+    <text x="648" y="38">Reducer</text>
+    <text x="796" y="38">Views</text>
+  </g>
+  <g font-size="11" fill="#9d9fa4">
+    <text x="244" y="38" text-anchor="end">Convex workflow</text>
+    <text x="572" y="38" text-anchor="end">append only</text>
+  </g>
+
+  <!-- ============ Engine ============ -->
+  <rect x="24" y="52" width="220" height="304" rx="14" fill="#111215" stroke="#26272b"/>
+  <g stroke="#3b3d42" stroke-width="1.5">
+    <path d="M52 108 V118"/><path d="M52 150 V160"/><path d="M52 192 V202"/><path d="M52 234 V244"/>
+  </g>
+  <g>
+    <rect x="40" y="76" width="188" height="32" rx="8" fill="#18191c"/>
+    <text x="52" y="96.5" font-size="12" fill="#f1f2f3" class="mono">plan</text>
+    <text x="118" y="96.5" font-size="12" fill="#9d9fa4">2 to 6 tasks</text>
+
+    <rect x="40" y="118" width="188" height="32" rx="8" fill="#172338" stroke="#34557f"/>
+    <text x="52" y="138.5" font-size="12" fill="#f1f2f3" class="mono">wave 1</text>
+    <text x="118" y="138.5" font-size="12" fill="#9d9fa4">3 in parallel</text>
+
+    <rect x="40" y="160" width="188" height="32" rx="8" fill="#18191c"/>
+    <text x="52" y="180.5" font-size="12" fill="#f1f2f3" class="mono">wave 2</text>
+    <text x="118" y="180.5" font-size="12" fill="#9d9fa4">the writer</text>
+
+    <rect x="40" y="202" width="188" height="32" rx="8" fill="#18191c"/>
+    <text x="52" y="222.5" font-size="12" fill="#f1f2f3" class="mono">assemble</text>
+    <text x="118" y="222.5" font-size="12" fill="#9d9fa4">one report</text>
+
+    <rect x="40" y="244" width="188" height="32" rx="8" fill="#18191c" stroke="#26272b" stroke-dasharray="4 3"/>
+    <text x="52" y="264.5" font-size="12" fill="#f1f2f3" class="mono">save</text>
+    <text x="118" y="264.5" font-size="12" fill="#9d9fa4">to an app</text>
+  </g>
+  <line x1="40" y1="296" x2="228" y2="296" stroke="#1f2023"/>
+  <text x="40" y="318" font-size="11" fill="#9d9fa4">Every model and tool call waits</text>
+  <text x="40" y="334" font-size="11" fill="#9d9fa4">for the rate limiter: 18 a minute.</text>
+
+  <!-- Engine to log -->
+  <path class="flow" d="M244 204 H320" fill="none" stroke="#5aa5fa" stroke-width="2"/>
+  <polygon points="320,200 328,204 320,208" fill="#5aa5fa"/>
+  <text x="286" y="194" font-size="10.5" fill="#9d9fa4" class="mono" text-anchor="middle">emit()</text>
+
+  <!-- ============ Event log ============ -->
+  <rect x="328" y="52" width="244" height="304" rx="14" fill="#111215" stroke="#26272b"/>
+  <g font-size="11" fill="#7d7f85">
+    <text x="364" y="78" text-anchor="end">seq</text>
+    <text x="376" y="78">type</text>
+  </g>
+  <line x1="340" y1="88" x2="560" y2="88" stroke="#1f2023"/>
+  <g font-size="11.5" class="mono num">
+    <g fill="#9d9fa4" text-anchor="end">
+      <text x="364" y="110">1</text>
+      <text x="364" y="140">2</text>
+      <text x="364" y="170">7</text>
+      <text x="364" y="200">11</text>
+      <text x="364" y="230">14</text>
+      <text x="364" y="260">56</text>
+      <text x="364" y="290">57</text>
+    </g>
+    <g fill="#f1f2f3">
+      <text x="376" y="110">mission_created</text>
+      <text x="376" y="140">mission_status</text>
+      <text x="376" y="170">plan_created</text>
+      <text x="376" y="200">node_started</text>
+      <text x="376" y="230">tool_call</text>
+      <text x="376" y="260">node_done</text>
+      <text x="376" y="290">deliverable_ready</text>
+    </g>
+  </g>
+  <g font-size="11" fill="#9d9fa4" text-anchor="end">
+    <text x="560" y="140">planning</text>
+    <text x="560" y="170">3 tasks</text>
+    <text x="560" y="200">options</text>
+    <text x="560" y="230" class="mono">web_search</text>
+    <text x="560" y="260">assembler</text>
+    <text x="560" y="290">v1</text>
+  </g>
+  <rect x="340" y="306" width="220" height="22" rx="6" fill="#16291e"/>
+  <text x="376" y="321" font-size="11.5" fill="#6bc48e" class="mono">mission_completed</text>
+  <text x="364" y="321" font-size="11.5" fill="#6bc48e" class="mono num" text-anchor="end">58</text>
+
+  <!-- Log to reducer -->
+  <path class="flow" d="M572 206 H640" fill="none" stroke="#5aa5fa" stroke-width="2"/>
+  <polygon points="640,202 648,206 640,210" fill="#5aa5fa"/>
+  <text x="610" y="196" font-size="10.5" fill="#9d9fa4" class="mono" text-anchor="middle">tail</text>
+  <circle r="3" fill="#5aa5fa" class="packet"><animateMotion dur="1.3s" repeatCount="indefinite" path="M572 206 H640"/></circle>
+  <circle r="3" fill="#5aa5fa" class="packet"><animateMotion dur="1.3s" repeatCount="indefinite" path="M244 204 H320"/></circle>
+
+  <!-- ============ Reducer ============ -->
+  <rect x="648" y="170" width="108" height="72" rx="12" fill="#18191c" stroke="#5aa5fa"/>
+  <text x="702" y="202" font-size="13" fill="#f1f2f3" class="mono" text-anchor="middle">reducer</text>
+  <text x="702" y="221" font-size="11" fill="#9d9fa4" text-anchor="middle">pure function</text>
+
+  <!-- Recorded log for the landing demo -->
+  <rect x="636" y="292" width="132" height="44" rx="10" fill="#111215" stroke="#26272b" stroke-dasharray="4 3"/>
+  <text x="702" y="311" font-size="11" fill="#f1f2f3" class="mono" text-anchor="middle">landing.json</text>
+  <text x="702" y="327" font-size="11" fill="#9d9fa4" text-anchor="middle">a recorded log</text>
+  <path d="M702 292 V250" fill="none" stroke="#4a4c52" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <polygon points="698,250 702,242 706,250" fill="#4a4c52"/>
+
+  <!-- Reducer to views -->
+  <g fill="none" stroke="#5aa5fa" stroke-width="1.75">
+    <path class="flow" d="M756 206 C776 206 776 131 796 131"/>
+    <path class="flow" d="M756 206 C776 206 776 181 796 181"/>
+    <path class="flow" d="M756 206 C776 206 776 231 796 231"/>
+    <path class="flow" d="M756 206 C776 206 776 281 796 281"/>
+  </g>
+  <g>
+    <rect x="796" y="111" width="140" height="40" rx="10" fill="#18191c" stroke="#26272b"/>
+    <text x="812" y="135.5" font-size="12.5" fill="#f1f2f3">Live graph</text>
+    <rect x="796" y="161" width="140" height="40" rx="10" fill="#18191c" stroke="#26272b"/>
+    <text x="812" y="185.5" font-size="12.5" fill="#f1f2f3">Stream</text>
+    <rect x="796" y="211" width="140" height="40" rx="10" fill="#18191c" stroke="#26272b"/>
+    <text x="812" y="235.5" font-size="12.5" fill="#f1f2f3">Trace</text>
+    <rect x="796" y="261" width="140" height="40" rx="10" fill="#18191c" stroke="#26272b"/>
+    <text x="812" y="285.5" font-size="12.5" fill="#f1f2f3">Landing demo</text>
+  </g>
+
+  <!-- Intents back to the engine -->
+  <path d="M866 301 V392 H134 V364" fill="none" stroke="#6f7177" stroke-width="1.5"/>
+  <polygon points="130,364 134,356 138,364" fill="#6f7177"/>
+  <rect x="352" y="380" width="296" height="24" rx="12" fill="#0c0d0f"/>
+  <text x="500" y="396" font-size="11.5" fill="#9d9fa4" text-anchor="middle">the browser sends only <tspan class="mono" fill="#f1f2f3">create</tspan> · <tspan class="mono" fill="#f1f2f3">stop</tspan> · <tspan class="mono" fill="#f1f2f3">followUp</tspan></text>
+</svg>

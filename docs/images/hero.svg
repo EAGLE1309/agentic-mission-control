@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 560" width="1100" height="560" role="img" aria-label="A mission in the middle of its run. The orchestrator has split the goal into four tasks. Two researchers are running, a librarian is done, and the writer, assembler, and report wait. Dotted blue edges carry work, solid edges have delivered, and dotted gray edges wait." font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <style>
+    .mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; }
+    .num { font-variant-numeric: tabular-nums; }
+    .flow { stroke-dasharray: 0.1 6; stroke-linecap: round; animation: flow 0.8s linear infinite; }
+    .wait { stroke-dasharray: 0.1 6; stroke-linecap: round; }
+    @keyframes flow { to { stroke-dashoffset: -6.1; } }
+    .spin { transform-box: fill-box; transform-origin: center; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .flow, .spin { animation: none; }
+      .packet { display: none; }
+    }
+  </style>
+
+  <!-- Canvas -->
+  <rect width="1100" height="560" rx="16" fill="#0c0d0f"/>
+  <rect x="0.5" y="0.5" width="1099" height="559" rx="15.5" fill="none" stroke="#212226"/>
+
+  <!-- Top bar: mark, status, goal, counters -->
+  <g transform="translate(28 26)" fill="#f1f2f3">
+    <path d="M6.5 10 13 5.5M6.5 10l6.5 4.5" stroke="#f1f2f3" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    <circle cx="5" cy="10" r="2.75"/>
+    <circle cx="15" cy="5" r="2.25"/>
+    <circle cx="15" cy="15" r="2.25"/>
+  </g>
+  <rect x="60" y="25" width="82" height="22" rx="6" fill="#172338" stroke="#34557f"/>
+  <circle cx="75" cy="36" r="4.5" fill="none" stroke="#5aa5fa" stroke-width="1.5" stroke-dasharray="20 9" class="spin"/>
+  <text x="86" y="40.5" font-size="12" font-weight="500" fill="#5aa5fa">Running</text>
+  <text x="156" y="41" font-size="15" font-weight="600" fill="#f1f2f3">Compare three open-source vector databases for a small RAG app</text>
+  <text x="1072" y="41" font-size="12" fill="#9d9fa4" text-anchor="end" class="num">0:14 · 1 of 4 tasks done · 3,326 tokens</text>
+  <line x1="0" y1="72" x2="1100" y2="72" stroke="#1c1d20"/>
+
+  <!-- Edges: orchestrator to tasks (delivered) -->
+  <g fill="none" stroke="#3b3d42" stroke-width="1.5">
+    <path d="M208 298 C236 298 236 146 264 146"/>
+    <path d="M208 298 H264"/>
+    <path d="M208 298 C236 298 236 450 264 450"/>
+    <!-- librarian to writer (delivered) -->
+    <path d="M444 450 C472 450 472 298 500 298"/>
+  </g>
+
+  <!-- Edges: running researchers to writer (carrying work) -->
+  <g fill="none" stroke="#5aa5fa" stroke-width="2">
+    <path class="flow" d="M444 146 C472 146 472 298 500 298"/>
+    <path class="flow" d="M444 298 H500"/>
+    <!-- task to tool satellites -->
+    <path class="flow" d="M276 192 V210 Q276 218 284 218 H288"/>
+    <path class="flow" d="M276 344 V362 Q276 370 284 370 H288"/>
+  </g>
+  <!-- librarian to its finished app_search -->
+  <path fill="none" stroke="#3b3d42" stroke-width="1.5" d="M276 496 V514 Q276 522 284 522 H288"/>
+
+  <!-- Edges: waiting -->
+  <g fill="none" stroke="#4a4c52" stroke-width="2">
+    <path class="wait" d="M680 298 H736"/>
+    <path class="wait" d="M916 298 H964"/>
+  </g>
+
+  <!-- Packets: tool calls and results in flight -->
+  <circle r="3" fill="#5aa5fa" class="packet">
+    <animateMotion dur="1.8s" repeatCount="indefinite" path="M444 146 C472 146 472 298 500 298"/>
+  </circle>
+  <circle r="3" fill="#5aa5fa" class="packet">
+    <animateMotion dur="2.2s" begin="-0.9s" repeatCount="indefinite" path="M444 298 H500"/>
+  </circle>
+  <circle r="3" fill="#5aa5fa" class="packet">
+    <animateMotion dur="1.2s" begin="-0.2s" repeatCount="indefinite" path="M276 192 V210 Q276 218 284 218 H288"/>
+  </circle>
+  <circle r="3" fill="#5aa5fa" class="packet">
+    <animateMotion dur="1.2s" begin="-0.6s" repeatCount="indefinite" path="M276 344 V362 Q276 370 284 370 H288"/>
+  </circle>
+
+  <!-- Orchestrator: done -->
+  <g transform="translate(28 252)">
+    <rect width="180" height="92" rx="10" fill="#212226"/>
+    <g transform="translate(10 7)" fill="#9d9fa4">
+      <path d="M4 6.5 9.5 3M4 6.5l5.5 3.5" stroke="#9d9fa4" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+      <circle cx="3" cy="6.5" r="2"/><circle cx="10" cy="2.6" r="1.6"/><circle cx="10" cy="10.4" r="1.6"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#9d9fa4">Orchestrator</text>
+    <circle cx="164" cy="13" r="5.5" fill="none" stroke="#6bc48e" stroke-width="1.4"/>
+    <path d="M161.6 13.1 163.3 14.8 166.4 11.4" fill="none" stroke="#6bc48e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="4" y="26" width="172" height="62" rx="7" fill="#18191c"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#f1f2f3">Vector DBs for RAG</text>
+    <text x="14" y="64" font-size="12" fill="#9d9fa4">Split into 4 tasks</text>
+    <text x="166" y="80" font-size="11" fill="#9d9fa4" text-anchor="end" class="num">0:02 · 564</text>
+    <circle cx="180" cy="46" r="3" fill="#6bc48e"/>
+  </g>
+
+  <!-- Researcher: Main options (running) -->
+  <g transform="translate(264 100)">
+    <rect width="180" height="92" rx="10" fill="#172338" stroke="#5aa5fa"/>
+    <g transform="translate(10 7)" fill="none" stroke="#9d9fa4" stroke-width="1.3" stroke-linecap="round">
+      <circle cx="5" cy="5" r="3.6"/><path d="M7.7 7.7 11 11"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#9d9fa4">Researcher</text>
+    <circle cx="164" cy="13" r="5" fill="none" stroke="#5aa5fa" stroke-width="1.5" stroke-dasharray="22 9.4" class="spin"/>
+    <rect x="4" y="26" width="172" height="62" rx="7" fill="#18191c"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#f1f2f3">Main options</text>
+    <text x="14" y="64" font-size="12" fill="#9d9fa4">Reading trychroma.com</text>
+    <text x="166" y="80" font-size="11" fill="#9d9fa4" text-anchor="end" class="num">0:11 · 1,204</text>
+    <circle cx="0" cy="46" r="3" fill="#5aa5fa"/>
+    <circle cx="180" cy="46" r="3" fill="#5aa5fa"/>
+  </g>
+  <!-- Satellite: fetch_url (running) -->
+  <g transform="translate(288 204)">
+    <rect width="150" height="28" rx="8" fill="#172338" stroke="#34557f"/>
+    <g transform="translate(10 8)" fill="none" stroke="#5aa5fa" stroke-width="1.2">
+      <circle cx="6" cy="6" r="5.4"/><ellipse cx="6" cy="6" rx="2.3" ry="5.4"/><path d="M0.6 6 H11.4"/>
+    </g>
+    <text x="30" y="18.5" font-size="12" fill="#f1f2f3" class="mono">fetch_url</text>
+    <rect x="124" y="7" width="14" height="14" rx="3.5" fill="#eceef0"/>
+    <text x="131" y="17.5" font-size="9" font-weight="700" fill="#2a2b30" text-anchor="middle" class="mono">C</text>
+  </g>
+
+  <!-- Researcher: Costs and tradeoffs (running) -->
+  <g transform="translate(264 252)">
+    <rect width="180" height="92" rx="10" fill="#172338" stroke="#5aa5fa"/>
+    <g transform="translate(10 7)" fill="none" stroke="#9d9fa4" stroke-width="1.3" stroke-linecap="round">
+      <circle cx="5" cy="5" r="3.6"/><path d="M7.7 7.7 11 11"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#9d9fa4">Researcher</text>
+    <circle cx="164" cy="13" r="5" fill="none" stroke="#5aa5fa" stroke-width="1.5" stroke-dasharray="22 9.4" class="spin"/>
+    <rect x="4" y="26" width="172" height="62" rx="7" fill="#18191c"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#f1f2f3">Costs and tradeoffs</text>
+    <text x="14" y="64" font-size="12" fill="#9d9fa4">Checking the free tiers</text>
+    <text x="166" y="80" font-size="11" fill="#9d9fa4" text-anchor="end" class="num">0:09 · 946</text>
+    <circle cx="0" cy="46" r="3" fill="#5aa5fa"/>
+    <circle cx="180" cy="46" r="3" fill="#5aa5fa"/>
+  </g>
+  <!-- Satellite: web_search x2 (running) -->
+  <g transform="translate(288 356)">
+    <rect width="166" height="28" rx="8" fill="#172338" stroke="#34557f"/>
+    <g transform="translate(10 8)" fill="none" stroke="#5aa5fa" stroke-width="1.2">
+      <circle cx="6" cy="6" r="5.4"/><ellipse cx="6" cy="6" rx="2.3" ry="5.4"/><path d="M0.6 6 H11.4"/>
+    </g>
+    <text x="30" y="18.5" font-size="12" fill="#f1f2f3" class="mono">web_search</text>
+    <text x="106" y="18.5" font-size="11" fill="#9d9fa4" class="num">×2</text>
+    <rect x="127" y="7" width="14" height="14" rx="3.5" fill="#eceef0"/>
+    <text x="134" y="17.5" font-size="9" font-weight="700" fill="#2a2b30" text-anchor="middle" class="mono">W</text>
+    <rect x="144" y="7" width="14" height="14" rx="3.5" fill="#eceef0"/>
+    <text x="151" y="17.5" font-size="9" font-weight="700" fill="#2a2b30" text-anchor="middle" class="mono">Q</text>
+  </g>
+
+  <!-- Librarian: Your Notion notes (done) -->
+  <g transform="translate(264 404)">
+    <rect width="180" height="92" rx="10" fill="#212226"/>
+    <g transform="translate(10 7)" fill="none" stroke="#9d9fa4" stroke-width="1.2">
+      <rect x="0.6" y="0.6" width="4.6" height="4.6" rx="1"/><rect x="6.8" y="0.6" width="4.6" height="4.6" rx="1"/>
+      <rect x="0.6" y="6.8" width="4.6" height="4.6" rx="1"/><rect x="6.8" y="6.8" width="4.6" height="4.6" rx="1"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#9d9fa4">Librarian</text>
+    <circle cx="164" cy="13" r="5.5" fill="none" stroke="#6bc48e" stroke-width="1.4"/>
+    <path d="M161.6 13.1 163.3 14.8 166.4 11.4" fill="none" stroke="#6bc48e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="4" y="26" width="172" height="62" rx="7" fill="#18191c"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#f1f2f3">Your Notion notes</text>
+    <text x="14" y="64" font-size="12" fill="#9d9fa4">Found 4 pages</text>
+    <text x="166" y="80" font-size="11" fill="#9d9fa4" text-anchor="end" class="num">0:06 · 612</text>
+    <circle cx="0" cy="46" r="3" fill="#6bc48e"/>
+    <circle cx="180" cy="46" r="3" fill="#6bc48e"/>
+  </g>
+  <!-- Satellite: app_search (done) -->
+  <g transform="translate(288 508)">
+    <rect width="150" height="28" rx="8" fill="#18191c" stroke="#2a2b30"/>
+    <g transform="translate(10 8)" fill="none" stroke="#9d9fa4" stroke-width="1.2">
+      <rect x="0.6" y="0.6" width="4.6" height="4.6" rx="1"/><rect x="6.8" y="0.6" width="4.6" height="4.6" rx="1"/>
+      <rect x="0.6" y="6.8" width="4.6" height="4.6" rx="1"/><rect x="6.8" y="6.8" width="4.6" height="4.6" rx="1"/>
+    </g>
+    <text x="30" y="18.5" font-size="12" fill="#f1f2f3" class="mono">app_search</text>
+    <rect x="124" y="7" width="14" height="14" rx="3.5" fill="#eceef0"/>
+    <text x="131" y="17.5" font-size="9" font-weight="700" fill="#2a2b30" text-anchor="middle" class="mono">N</text>
+  </g>
+
+  <!-- Writer: waits -->
+  <g transform="translate(500 252)">
+    <rect width="180" height="92" rx="10" fill="#18191c" stroke="#26272b"/>
+    <g transform="translate(10 7)" fill="none" stroke="#6f7177" stroke-width="1.3" stroke-linejoin="round">
+      <path d="M1.5 10.5 V8.3 L8.3 1.5 L10.5 3.7 L3.7 10.5 Z"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#7d7f85">Writer</text>
+    <circle cx="164" cy="13" r="5" fill="none" stroke="#5c5e64" stroke-width="1.4" stroke-dasharray="2 2.2"/>
+    <rect x="4" y="26" width="172" height="62" rx="7" fill="#141518"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#9d9fa4">Compare and pick</text>
+    <text x="14" y="64" font-size="12" fill="#7d7f85">Waits for 2 tasks</text>
+    <circle cx="0" cy="46" r="3" fill="#4a4c52"/>
+    <circle cx="180" cy="46" r="3" fill="#4a4c52"/>
+  </g>
+
+  <!-- Assembler: waits -->
+  <g transform="translate(736 252)">
+    <rect width="180" height="92" rx="10" fill="#18191c" stroke="#26272b"/>
+    <g transform="translate(10 7)" fill="none" stroke="#6f7177" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 0.6 H7.6 L10.4 3.4 V11.4 H2 Z"/><path d="M4.2 6 H8.2 M4.2 8.6 H8.2"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#7d7f85">Assembler</text>
+    <circle cx="164" cy="13" r="5" fill="none" stroke="#5c5e64" stroke-width="1.4" stroke-dasharray="2 2.2"/>
+    <rect x="4" y="26" width="172" height="62" rx="7" fill="#141518"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#9d9fa4">Assemble the report</text>
+    <text x="14" y="64" font-size="12" fill="#7d7f85">Merges every part</text>
+    <circle cx="0" cy="46" r="3" fill="#4a4c52"/>
+    <circle cx="180" cy="46" r="3" fill="#4a4c52"/>
+  </g>
+
+  <!-- Report: waits -->
+  <g transform="translate(964 252)">
+    <rect width="112" height="92" rx="10" fill="#18191c" stroke="#26272b"/>
+    <g transform="translate(10 7)" fill="none" stroke="#6f7177" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 0.6 H7.6 L10.4 3.4 V11.4 H2 Z"/><path d="M4.2 6 H8.2 M4.2 8.6 H8.2"/>
+    </g>
+    <text x="28" y="18" font-size="12" fill="#7d7f85">Report</text>
+    <rect x="4" y="26" width="104" height="62" rx="7" fill="#141518"/>
+    <text x="14" y="47" font-size="13" font-weight="600" fill="#9d9fa4">Version 1</text>
+    <text x="14" y="64" font-size="12" fill="#7d7f85">Not ready</text>
+    <circle cx="0" cy="46" r="3" fill="#4a4c52"/>
+  </g>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#9d9fa4">
+    <path d="M736 420 H772" fill="none" stroke="#5aa5fa" stroke-width="2" class="flow"/>
+    <text x="784" y="424">carries work</text>
+    <path d="M736 448 H772" fill="none" stroke="#3b3d42" stroke-width="1.5"/>
+    <text x="784" y="452">has delivered</text>
+    <path d="M736 476 H772" fill="none" stroke="#4a4c52" stroke-width="2" class="wait"/>
+    <text x="784" y="480">waits</text>
+  </g>
+</svg>
