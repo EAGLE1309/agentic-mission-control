@@ -39,7 +39,7 @@ Vercel holds one secret: the deploy key. All other secrets live in the prod depl
 
 ## 2. Create the Vercel project
 
-1. In Vercel, click **Add New → Project** and import `EAGLE1309/agentic-mission-control`.
+1. In Vercel, click **Add New → Project** and import this repo, or your fork of it.
 2. Keep the framework preset **Next.js** and the root directory `./`.
 3. Override the **Build Command** with `npx convex deploy --cmd 'npm run build'`.
 4. Add the environment variable `CONVEX_DEPLOY_KEY` with the key from step 1. Select only the **Production** environment.

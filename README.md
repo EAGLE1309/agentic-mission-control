@@ -159,7 +159,7 @@ convex/engine/       the mission engine: workflow, plan, worker, assembler, save
 src/shared/          code for both sides: events, reducer, plan rules, model chains, constants
 src/features/        the UI, one folder per feature: mission-graph, mission-stream, trace, composer, ...
 fixtures/missions/   recorded event logs for the landing demo
-docs/                product spec, tech spec, design system, deploy guide, blog
+docs/                product spec, tech spec, deploy guide, blog
 ```
 
 Every tunable number (limits, timeouts, budgets) is in [`src/shared/constants.ts`](src/shared/constants.ts).
@@ -173,13 +173,17 @@ Every tunable number (limits, timeouts, budgets) is in [`src/shared/constants.ts
 
 - [`docs/prd.md`](docs/prd.md): what v1 and v2 do, and the limits they work in.
 - [`docs/tech-spec.md`](docs/tech-spec.md): the engine, events, limits, and every decision with its reason.
-- [`docs/design.md`](docs/design.md): tokens, components, and the run view.
 - [`docs/deploy.md`](docs/deploy.md): Vercel and Convex Cloud.
-- [`docs/superpowers/plans`](docs/superpowers/plans): the six build plans, M1 to M6.
 - [`docs/blog/why-i-built-mission-control.md`](docs/blog/why-i-built-mission-control.md): why and how I built it.
+
+The design doc (`docs/design.md`: tokens, components, and the run view) is kept private and is not in this repo.
 
 ## What's next
 
 v2 is specced in the PRD but not built. It adds a critic that reviews each task, approval gates, guidance for a mission while it runs, replay, public share links, custom agents with memory, scheduled missions, and PDF export.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
 
 Made by [eagledev.in](https://eagledev.in).
