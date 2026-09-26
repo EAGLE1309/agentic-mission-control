@@ -6,13 +6,13 @@ import { IconCircleX, IconEye, IconEyeOff } from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { BlurInText, blurIn } from "@/features/landing/blur-in-text";
 import { authClient } from "@/lib/auth-client";
 import { DEFAULT_APP_PATH } from "@/lib/safe-next";
 import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/shared/constants";
@@ -28,7 +28,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const COPY = {
   "sign-in": {
-    title: "Sign in to Mission Control",
+    title: "Welcome back.",
+    subtitle: "Sign in to open your missions.",
     submit: "Sign in",
     pending: "Signing in…",
     switchText: "No account?",
@@ -36,7 +37,8 @@ const COPY = {
     switchPath: "/sign-up",
   },
   "sign-up": {
-    title: "Create your account",
+    title: "Create your account.",
+    subtitle: "It is free, and you do not need a card.",
     submit: "Create account",
     pending: "Creating account…",
     switchText: "Have an account?",
@@ -192,121 +194,129 @@ export function AuthForm({
   }
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-6 rounded-2xl bg-card p-6 shadow-raised">
-      <div className="flex flex-col gap-3">
-        <Mark className="text-foreground" />
-        <h1 className="text-xl font-semibold tracking-[-0.01em] text-balance">{copy.title}</h1>
+    <div className="flex w-full max-w-sm flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl leading-[1.1] font-semibold tracking-[-0.03em] text-balance">
+          <BlurInText text={copy.title} step={60} />
+        </h1>
+        <p className="blur-in text-base text-pretty text-muted-foreground" style={blurIn(120)}>
+          {copy.subtitle}
+        </p>
       </div>
 
-      {hasSocial && (
-        <div className="flex flex-col gap-2">
-          {providers.github && (
-            <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => submitSocial("github")}>
-              {pending === "github" ? <Spinner data-icon="inline-start" /> : <Github variant="mono" data-icon="inline-start" aria-hidden />}
-              Continue with GitHub
-            </Button>
-          )}
-          {providers.google && (
-            <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => submitSocial("google")}>
-              {pending === "google" ? <Spinner data-icon="inline-start" /> : <Google variant="default" data-icon="inline-start" aria-hidden />}
-              Continue with Google
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="blur-in flex flex-col gap-6" style={blurIn(200, { y: 12 })}>
+        {hasSocial && (
+          <div className="flex flex-col gap-2">
+            {providers.github && (
+              <Button type="button" variant="outline" size="lg" className="w-full" disabled={busy} onClick={() => submitSocial("github")}>
+                {pending === "github" ? <Spinner data-icon="inline-start" /> : <Github variant="mono" data-icon="inline-start" aria-hidden />}
+                Continue with GitHub
+              </Button>
+            )}
+            {providers.google && (
+              <Button type="button" variant="outline" size="lg" className="w-full" disabled={busy} onClick={() => submitSocial("google")}>
+                {pending === "google" ? <Spinner data-icon="inline-start" /> : <Google variant="default" data-icon="inline-start" aria-hidden />}
+                Continue with Google
+              </Button>
+            )}
+          </div>
+        )}
 
-      <form noValidate onSubmit={submitEmail} className="flex flex-col gap-6" aria-describedby={errors.form ? `${id}-form-error` : undefined}>
-        {hasSocial && <FieldSeparator>or</FieldSeparator>}
+        <form noValidate onSubmit={submitEmail} className="flex flex-col gap-6" aria-describedby={errors.form ? `${id}-form-error` : undefined}>
+          {hasSocial && <FieldSeparator>or</FieldSeparator>}
 
-        <FieldGroup className="gap-4">
-          {mode === "sign-up" && (
-            <Field data-invalid={errors.name ? true : undefined}>
-              <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
+          <FieldGroup className="gap-4">
+            {mode === "sign-up" && (
+              <Field data-invalid={errors.name ? true : undefined}>
+                <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
+                <Input
+                  id={`${id}-name`}
+                  className="h-10"
+                  name="name"
+                  autoComplete="name"
+                  maxLength={NAME_MAX_LENGTH}
+                  value={values.name}
+                  onChange={(event) => update("name", event.target.value)}
+                  aria-invalid={errors.name ? true : undefined}
+                  aria-describedby={errors.name ? `${id}-name-error` : undefined}
+                  disabled={busy}
+                />
+                <FieldMessage id={`${id}-name-error`} message={errors.name} />
+              </Field>
+            )}
+
+            <Field data-invalid={errors.email ? true : undefined}>
+              <FieldLabel htmlFor={`${id}-email`}>Email</FieldLabel>
               <Input
-                id={`${id}-name`}
-                name="name"
-                autoComplete="name"
-                maxLength={NAME_MAX_LENGTH}
-                value={values.name}
-                onChange={(event) => update("name", event.target.value)}
-                aria-invalid={errors.name ? true : undefined}
-                aria-describedby={errors.name ? `${id}-name-error` : undefined}
+                id={`${id}-email`}
+                className="h-10"
+                name="email"
+                type="email"
+                autoComplete="email"
+                spellCheck={false}
+                value={values.email}
+                onChange={(event) => update("email", event.target.value)}
+                aria-invalid={errors.email ? true : undefined}
+                aria-describedby={errors.email ? `${id}-email-error` : undefined}
                 disabled={busy}
               />
-              <FieldMessage id={`${id}-name-error`} message={errors.name} />
+              <FieldMessage id={`${id}-email-error`} message={errors.email} />
             </Field>
-          )}
 
-          <Field data-invalid={errors.email ? true : undefined}>
-            <FieldLabel htmlFor={`${id}-email`}>Email</FieldLabel>
-            <Input
-              id={`${id}-email`}
-              name="email"
-              type="email"
-              autoComplete="email"
-              spellCheck={false}
-              value={values.email}
-              onChange={(event) => update("email", event.target.value)}
-              aria-invalid={errors.email ? true : undefined}
-              aria-describedby={errors.email ? `${id}-email-error` : undefined}
-              disabled={busy}
-            />
-            <FieldMessage id={`${id}-email-error`} message={errors.email} />
-          </Field>
+            <Field data-invalid={errors.password ? true : undefined}>
+              <FieldLabel htmlFor={`${id}-password`}>Password</FieldLabel>
+              <InputGroup className="h-10">
+                <InputGroupInput
+                  id={`${id}-password`}
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                  maxLength={PASSWORD_MAX_LENGTH}
+                  value={values.password}
+                  onChange={(event) => update("password", event.target.value)}
+                  aria-invalid={errors.password ? true : undefined}
+                  aria-describedby={errors.password ? `${id}-password-error` : undefined}
+                  disabled={busy}
+                />
+                <InputGroupAddon align="inline-end">
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <InputGroupButton
+                          size="icon-xs"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-pressed={showPassword}
+                          onClick={() => setShowPassword((shown) => !shown)}
+                          disabled={busy}
+                        />
+                      }
+                    >
+                      {showPassword ? <IconEyeOff /> : <IconEye />}
+                    </TooltipTrigger>
+                    <TooltipContent>{showPassword ? "Hide password" : "Show password"}</TooltipContent>
+                  </Tooltip>
+                </InputGroupAddon>
+              </InputGroup>
+              <FieldMessage id={`${id}-password-error`} message={errors.password} />
+            </Field>
+          </FieldGroup>
 
-          <Field data-invalid={errors.password ? true : undefined}>
-            <FieldLabel htmlFor={`${id}-password`}>Password</FieldLabel>
-            <InputGroup>
-              <InputGroupInput
-                id={`${id}-password`}
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-                maxLength={PASSWORD_MAX_LENGTH}
-                value={values.password}
-                onChange={(event) => update("password", event.target.value)}
-                aria-invalid={errors.password ? true : undefined}
-                aria-describedby={errors.password ? `${id}-password-error` : undefined}
-                disabled={busy}
-              />
-              <InputGroupAddon align="inline-end">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <InputGroupButton
-                        size="icon-xs"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        aria-pressed={showPassword}
-                        onClick={() => setShowPassword((shown) => !shown)}
-                        disabled={busy}
-                      />
-                    }
-                  >
-                    {showPassword ? <IconEyeOff /> : <IconEye />}
-                  </TooltipTrigger>
-                  <TooltipContent>{showPassword ? "Hide password" : "Show password"}</TooltipContent>
-                </Tooltip>
-              </InputGroupAddon>
-            </InputGroup>
-            <FieldMessage id={`${id}-password-error`} message={errors.password} />
-          </Field>
-        </FieldGroup>
+          <div className="flex flex-col gap-3">
+            <Button type="submit" size="lg" className="w-full" disabled={busy}>
+              {pending === "email" && <Spinner data-icon="inline-start" />}
+              {pending === "email" ? copy.pending : copy.submit}
+            </Button>
+            {errors.form && (
+              <p id={`${id}-form-error`} role="alert" className="flex items-start gap-1.5 text-sm text-destructive">
+                <IconCircleX aria-hidden className="mt-0.5 size-4 shrink-0" />
+                {errors.form}
+              </p>
+            )}
+          </div>
+        </form>
+      </div>
 
-        <div className="flex flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={busy}>
-            {pending === "email" && <Spinner data-icon="inline-start" />}
-            {pending === "email" ? copy.pending : copy.submit}
-          </Button>
-          {errors.form && (
-            <p id={`${id}-form-error`} role="alert" className="flex items-start gap-1.5 text-sm text-destructive">
-              <IconCircleX aria-hidden className="mt-0.5 size-4 shrink-0" />
-              {errors.form}
-            </p>
-          )}
-        </div>
-      </form>
-
-      <p className="text-sm text-muted-foreground">
+      <p className="blur-in text-sm text-muted-foreground" style={blurIn(280)}>
         {copy.switchText}{" "}
         <Link href={`${copy.switchPath}${nextQuery}`} className="text-link underline-offset-2 hover:underline">
           {copy.switchLink}

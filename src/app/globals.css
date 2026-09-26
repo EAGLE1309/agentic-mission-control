@@ -253,6 +253,74 @@
   background-size: 16px 16px;
 }
 
+/* Landing motion (design §6.12). A blur-in plays once: the hero on load, and
+   each marked block when it first scrolls into view. Under reduced motion,
+   both only fade. Blur stays at 10px or less. */
+@keyframes blur-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--blur-in-blur, 10px));
+    transform: translateY(var(--blur-in-y, 8px));
+  }
+}
+
+@keyframes blur-in-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@layer components {
+  .blur-in {
+    animation: blur-in var(--blur-in-duration, 800ms) cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: var(--blur-in-delay, 0ms);
+  }
+
+  [data-reveal="hidden"] {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(16px);
+  }
+
+  [data-reveal="shown"] {
+    transition-property: opacity, filter, transform;
+    transition-duration: 800ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blur-in {
+      animation-name: blur-in-fade;
+      animation-duration: 400ms;
+    }
+    [data-reveal="hidden"] {
+      filter: none;
+      transform: none;
+    }
+    [data-reveal="shown"] {
+      transition-property: opacity;
+      transition-duration: 400ms;
+    }
+  }
+
+  /* The landing header gets its bottom line once the page scrolls. Browsers
+     without scroll timelines show the line all the time. */
+  @supports (animation-timeline: scroll()) {
+    .landing-header {
+      animation: header-line linear both;
+      animation-timeline: scroll();
+      animation-range: 0 48px;
+    }
+  }
+}
+
+@keyframes header-line {
+  from {
+    border-color: transparent;
+  }
+}
+
 /* React Flow: the app draws its own nodes, edges, and focus rings. Its
    base.css is unlayered, so these rules are unlayered too, and each one has
    a .react-flow ancestor to win over base.css in any load order. */
