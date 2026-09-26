@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mission Control
 
-## Getting Started
+Give AI agents a goal and watch them work. An orchestrator splits the goal into tasks, researcher and writer agents run them in parallel with web tools, and an assembler writes a report with sources. The run view shows everything live: a graph whose edges carry the work, a stream of the plan and tool calls, and the full trace of each task.
 
-First, run the development server:
+- **Web:** Next.js (App Router, `proxy.ts`), React, shadcn/ui on Base UI, Tailwind, React Flow + dagre, Motion.
+- **Backend:** Convex (database, reactive queries, Workflow and Rate Limiter components), Better Auth.
+- **Models and tools:** free OpenRouter models through the AI SDK, Tavily search, Jina Reader with a guarded direct fetch.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+The product spec is in [`docs/prd.md`](docs/prd.md), the architecture in [`docs/tech-spec.md`](docs/tech-spec.md), the design system in [`docs/design.md`](docs/design.md), and the build plans in [`docs/superpowers/plans`](docs/superpowers/plans).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run it
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Install the packages: `npm install`.
+2. Start Convex in its own terminal: `npx convex dev`. The first run creates a deployment and writes `.env.local`.
+3. Set the Convex environment (see below): `npx convex env set NAME value`.
+4. Add `NEXT_PUBLIC_SITE_URL=http://localhost:3000` to `.env.local`.
+5. Start the web app: `npm run dev`, then open http://localhost:3000.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+With no OpenRouter key, missions run in **simulated mode**: scripted agents with realistic delays and no model or search calls. Set the keys to run live missions.
 
-## Learn More
+## Environment
 
-To learn more about Next.js, take a look at the following resources:
+Convex (`npx convex env set`):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Name | Needed | Purpose |
+|---|---|---|
+| `BETTER_AUTH_SECRET` | Yes | Session signing. Use 32 random bytes in base64. |
+| `SITE_URL` | Yes | The web app URL, for example `http://localhost:3000`. |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | No | GitHub sign-in. Callback: `{SITE_URL}/api/auth/callback/github`. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | No | Google sign-in. Callback: `{SITE_URL}/api/auth/callback/google`. |
+| `OPENROUTER_API_KEY` | Live mode | Model calls. |
+| `OPENROUTER_DAILY_CAP` | No | Daily request cap of the account. Default 1000. |
+| `OPENROUTER_MODELS` | No | Model chain for every agent, comma-separated. Example: `openrouter/free`. Replaces the presets in `src/shared/models.ts`. |
+| `OPENROUTER_MODELS_ORCHESTRATOR`, `_RESEARCHER`, `_WRITER`, `_ASSEMBLER` | No | Model chain for one agent. Wins over `OPENROUTER_MODELS`. |
+| `TAVILY_API_KEY` | Live mode | `web_search`. Without it, agents use `fetch_url` only. |
+| `JINA_API_KEY` | No | Higher Jina Reader limits. |
+| `LLM_MODE` | No | `simulated` or `live`. Default: live when an OpenRouter key is set. |
+| `MISSION_QUOTA` | No | Missions for each user each day. Default 3. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+A sign-in button shows only when its provider has keys.
 
-## Deploy on Vercel
+Next.js (`.env.local`): `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CONVEX_SITE_URL`, `NEXT_PUBLIC_SITE_URL`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Does |
+|---|---|
+| `npm run dev` | Web app in development. |
+| `npx convex dev` | Convex functions, with codegen on each save. |
+| `npm test` | Backend tests (convex-test): auth scope, seq order, quotas, lists, tool guards. |
+| `npm run build` | Production build. |
+| `npm run lint` | ESLint. |
+
+## Notes
+
+- Model chains are in [`src/shared/models.ts`](src/shared/models.ts). A daily cron refreshes the free model catalog and skips preset models that are gone. A chain set by env is used as given. The Agents page shows the chains in use.
+- The landing demo plays [`fixtures/missions/landing.json`](fixtures/missions/landing.json), an event log recorded from a mission. To record a new one, run a mission, export its events with `events:page`, and replace the file.
