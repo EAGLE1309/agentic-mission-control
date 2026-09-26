@@ -40,9 +40,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# kept private: build plans and the design doc
+# kept private: build plans, the design doc, and the blog
 /docs/superpowers/
 /docs/design.md
+/docs/blog/
+/docs/images/blog/
+/docs/images/black-box-glass-box.svg
+/docs/images/rerun.svg
 
 # local agent skills, from get-convex/agent-skills and ComposioHQ/composio
 /.agents/

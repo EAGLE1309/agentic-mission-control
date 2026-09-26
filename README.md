@@ -6,7 +6,7 @@
 
 Type a research goal. An orchestrator splits it into tasks, a small team of AI agents works on them in parallel, and you watch every step on a live graph. At the end you get a markdown report with every source linked.
 
-I built it because deep research in Claude and ChatGPT is good but slow, and while it runs you get a status line and a timer. Here the work is the interface. Click any task and you can read what the agent thought, which pages it searched and read, and how many tokens it spent. If one part comes back wrong, you fix that part from the chat and keep the rest. It all runs on free models. The longer story is in [the blog post](docs/blog/why-i-built-mission-control.md).
+I built it because deep research in Claude and ChatGPT is good but slow, and while it runs you get a status line and a timer. Here the work is the interface. Click any task and you can read what the agent thought, which pages it searched and read, and how many tokens it spent. If one part comes back wrong, you fix that part from the chat and keep the rest. It all runs on free models.
 
 ## What a mission looks like
 
@@ -159,7 +159,7 @@ convex/engine/       the mission engine: workflow, plan, worker, assembler, save
 src/shared/          code for both sides: events, reducer, plan rules, model chains, constants
 src/features/        the UI, one folder per feature: mission-graph, mission-stream, trace, composer, ...
 fixtures/missions/   recorded event logs for the landing demo
-docs/                product spec, tech spec, deploy guide, blog
+docs/                product spec, tech spec, deploy guide
 ```
 
 Every tunable number (limits, timeouts, budgets) is in [`src/shared/constants.ts`](src/shared/constants.ts).
@@ -174,7 +174,6 @@ Every tunable number (limits, timeouts, budgets) is in [`src/shared/constants.ts
 - [`docs/prd.md`](docs/prd.md): what v1 and v2 do, and the limits they work in.
 - [`docs/tech-spec.md`](docs/tech-spec.md): the engine, events, limits, and every decision with its reason.
 - [`docs/deploy.md`](docs/deploy.md): Vercel and Convex Cloud.
-- [`docs/blog/why-i-built-mission-control.md`](docs/blog/why-i-built-mission-control.md): why and how I built it.
 
 The design doc (`docs/design.md`: tokens, components, and the run view) is kept private and is not in this repo.
 
