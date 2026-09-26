@@ -17,6 +17,7 @@ import type * as crons from "../crons.js";
 import type * as deliverables from "../deliverables.js";
 import type * as engine_appTools from "../engine/appTools.js";
 import type * as engine_assemble from "../engine/assemble.js";
+import type * as engine_direct from "../engine/direct.js";
 import type * as engine_emit from "../engine/emit.js";
 import type * as engine_fetchPage from "../engine/fetchPage.js";
 import type * as engine_gate from "../engine/gate.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   deliverables: typeof deliverables;
   "engine/appTools": typeof engine_appTools;
   "engine/assemble": typeof engine_assemble;
+  "engine/direct": typeof engine_direct;
   "engine/emit": typeof engine_emit;
   "engine/fetchPage": typeof engine_fetchPage;
   "engine/gate": typeof engine_gate;

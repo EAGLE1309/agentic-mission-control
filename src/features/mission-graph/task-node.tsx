@@ -41,6 +41,7 @@ function useSecondLine(node: MissionNode): { text: string; tone: "muted" | "dest
     case "pending":
       if (node.role === "report") return { text: "Waits for the tasks", tone: "muted" };
       if (node.role === "assembler") return { text: "Waits for the tasks to finish", tone: "muted" };
+      if (node.rerun && !titles) return { text: "Runs again soon", tone: "muted" };
       return { text: titles ? `Waits for ${titles}` : "Waits to start", tone: "muted" };
     case "queued":
       return { text: "Waiting for a model slot", tone: "muted" };
@@ -110,7 +111,7 @@ function TaskCard({ node }: { node: MissionNode }) {
       className={cn(
         "flex cursor-pointer flex-col rounded-lg p-1 shadow-raised transition-[background-color,box-shadow] duration-150 hover:shadow-raised-hover",
         "animate-node-enter motion-reduce:animate-none",
-        node.isNew
+        node.isNew || node.rerun
           ? "border border-dashed border-live-border bg-live-subtle"
           : node.role === "report" && node.status === "done"
             ? "bg-success-subtle ring-1 ring-success/40"
@@ -122,8 +123,10 @@ function TaskCard({ node }: { node: MissionNode }) {
       <div className="flex h-6 shrink-0 items-center gap-1.5 px-1.5 text-xs text-muted-foreground">
         <Icon aria-hidden className="size-3.5 shrink-0" />
         <span className="truncate">{ROLE_LABEL[node.role]}</span>
-        {node.isNew && (
-          <span className="inline-flex h-4 items-center rounded-sm bg-live-subtle px-1 text-xs font-medium text-live">New</span>
+        {(node.isNew || node.rerun) && (
+          <span className="inline-flex h-4 items-center rounded-sm bg-live-subtle px-1 text-xs font-medium text-live animate-in fade-in-0 zoom-in-95 duration-150 ease-out motion-reduce:animate-none">
+            {node.rerun ? "Rerun" : "New"}
+          </span>
         )}
         <StatusIcon status={nodeStatusKind(node.status)} className="ml-auto size-3.5" />
       </div>

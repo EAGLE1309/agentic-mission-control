@@ -1,5 +1,5 @@
-import { appSpec, type UsableApp } from "../../src/shared/apps";
-import type { Source } from "../../src/shared/events";
+import { appSpec, isAppSlug, type UsableApp } from "../../src/shared/apps";
+import type { NodeStatus, Source } from "../../src/shared/events";
 
 /** The apps of the user in plain lines. The librarian also gets the notes of each app. */
 function appLines(apps: readonly UsableApp[], withNotes = false): string[] {
@@ -15,20 +15,100 @@ function appLines(apps: readonly UsableApp[], withNotes = false): string[] {
 // Prompt text built from mission data. The system prompts are in
 // src/shared/agents.ts, so the Agents page shows the same text.
 
-export function planPrompt(goal: string, feedback: string[], apps: readonly UsableApp[] = []): string {
-  const lines = ["Goal:", goal.trim()];
+/** The connected apps, and the apps that can take the report (saveTo). */
+function appSection(apps: readonly UsableApp[]): string[] {
   const writable = apps.filter((app) => app.write && appSpec(app.slug).write);
-  lines.push(
-    "",
+  return [
     apps.length > 0 ? "Connected apps of the user (the librarian can use them):" : "The user has no connected apps. Do not use the librarian role.",
     ...appLines(apps),
     "",
     writable.length > 0
       ? `Apps that can take the finished report (saveTo.app): ${writable.map((app) => app.slug).join(", ")}.`
       : "No app can take the finished report, so saveTo is null.",
-  );
+  ];
+}
+
+function oneLine(text: string, max: number): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  return line.length <= max ? line : `${line.slice(0, max - 1).trimEnd()}…`;
+}
+
+// Prompt text built from mission data. The system prompts are in
+// src/shared/agents.ts, so the Agents page shows the same text.
+
+export function planPrompt(goal: string, feedback: string[], apps: readonly UsableApp[] = []): string {
+  const lines = ["Goal:", goal.trim(), "", ...appSection(apps)];
   if (feedback.length > 0) {
     lines.push("", "Your last plan was not valid:", ...feedback.map((line) => `- ${line}`), "", "Make a new plan that fixes these problems.");
+  }
+  return lines.join("\n");
+}
+
+const STATUS_WORD: Record<NodeStatus, string> = {
+  pending: "not started",
+  queued: "waiting",
+  running: "running",
+  done: "done",
+  failed: "failed",
+  killed: "stopped",
+};
+
+export type DirectState = {
+  goal: string;
+  message: string;
+  tasks: {
+    id: string;
+    role: string;
+    title: string;
+    instructions: string;
+    status: NodeStatus;
+    dependsOn: string[];
+    error: string | null;
+    summary: string | null;
+  }[];
+  turns: { message: string; status: NodeStatus; summary: string | null }[];
+  report: { version: number; words: number; markdown: string } | null;
+  saves: { app: string; url: string; title: string; version: number }[];
+  apps: readonly UsableApp[];
+};
+
+/** The mission state and the message of the user, for the director of a follow-up (FR-25). */
+export function directPrompt(state: DirectState, feedback: string[]): string {
+  const lines = ["Mission goal:", state.goal.trim(), "", "Tasks, in plan order:"];
+  if (state.tasks.length === 0) lines.push("- None: the plan was not made.");
+  for (const task of state.tasks) {
+    const deps = task.dependsOn.length > 0 ? `, depends on ${task.dependsOn.join(", ")}` : "";
+    lines.push(`- ${task.id} (${task.role}, ${STATUS_WORD[task.status]}${deps}): ${task.title}`);
+    lines.push(`  Instructions: ${oneLine(task.instructions, 400)}`);
+    if (task.status === "done" && task.summary) lines.push(`  Output: ${oneLine(task.summary, 240)}`);
+    if (task.status !== "done" && task.error) lines.push(`  Error: ${oneLine(task.error, 240)}`);
+  }
+  lines.push("");
+  if (state.report) {
+    lines.push(`Report: version ${state.report.version}, ${state.report.words} words.`, "<report>", state.report.markdown.trim(), "</report>");
+  } else {
+    lines.push("Report: none yet.");
+  }
+  lines.push("");
+  if (state.saves.length > 0) {
+    lines.push(
+      "Saved copies of the report:",
+      ...state.saves.map((copy) => `- ${isAppSlug(copy.app) ? appSpec(copy.app).name : copy.app}: [${copy.title}](${copy.url}), version ${copy.version}`),
+    );
+  } else {
+    lines.push("Saved copies of the report: none.");
+  }
+  lines.push("", ...appSection(state.apps));
+  if (state.turns.length > 0) {
+    lines.push(
+      "",
+      "Earlier turns of this chat:",
+      ...state.turns.map((turn) => `- The user wrote "${oneLine(turn.message, 240)}". Result: ${turn.summary ?? STATUS_WORD[turn.status]}.`),
+    );
+  }
+  lines.push("", "The user writes:", "<message>", state.message.trim(), "</message>");
+  if (feedback.length > 0) {
+    lines.push("", "Your last answer was not valid:", ...feedback.map((line) => `- ${line}`), "", "Answer again and fix these problems.");
   }
   return lines.join("\n");
 }
@@ -72,9 +152,12 @@ export function assemblePrompt(args: {
   title: string | null;
   inputs: { title: string; markdown: string }[];
   failed: string[];
+  /** A follow-up that rewrites the report can ask for changes too. */
+  instruction?: string | null;
 }): string {
   const lines = ["Mission goal:", args.goal.trim()];
   if (args.title) lines.push("", `Report title: ${args.title}`);
+  if (args.instruction?.trim()) lines.push("", "The user asked for this version:", args.instruction.trim());
   lines.push("", "Task sections:");
   for (const input of args.inputs) {
     lines.push("", `<section title="${input.title}">`, input.markdown.trim(), "</section>");

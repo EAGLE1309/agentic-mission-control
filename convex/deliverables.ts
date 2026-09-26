@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { getOwnedMission, requireUser } from "./lib/auth";
-import { MAX_REVISIONS } from "../src/shared/constants";
+import { MAX_FOLLOW_UPS } from "../src/shared/constants";
 
 // Report versions (FR-24, FR-25). Owner only.
 
@@ -13,7 +13,7 @@ export const versions = query({
     const rows = await ctx.db
       .query("deliverables")
       .withIndex("by_missionId_and_version", (q) => q.eq("missionId", args.missionId))
-      .take(MAX_REVISIONS + 1);
+      .take(MAX_FOLLOW_UPS + 1);
     return rows.map((row) => ({
       version: row.version,
       instruction: row.instruction ?? null,

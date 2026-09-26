@@ -43,7 +43,7 @@ function demoMeta(createdAt: number): MissionMeta {
     mode: "simulated",
     modelProfile: "balanced",
     revisionCount: 0,
-    maxRevisions: 3,
+    maxFollowUps: 10,
     createdAt,
     endedAt: null,
     durationMs: null,

@@ -10,6 +10,7 @@ import type {
   ModelProfile,
   NodeStatus,
   PlanNode,
+  SaveTo,
   Source,
   TaskNode,
   ToolName,
@@ -55,6 +56,8 @@ export type MissionNode = {
   model: string | null;
   /** Added after the first plan (revision, replan, branch). Cleared when the node starts. */
   isNew: boolean;
+  /** A follow-up runs it again. Cleared when the node starts. */
+  rerun: boolean;
   queuedReason: string | null;
   /** Text of the latest finished step. The live thought comes from nodeLive. */
   lastThought: string | null;
@@ -112,7 +115,16 @@ export type Packet = {
 };
 
 export type NarrationItem = { seq: number; at: number; text: string };
-export type RevisionItem = { nodeId: string; instruction: string; at: number };
+/** A follow-up turn in the chat (FR-25): the message, and the work that it started. */
+export type RevisionItem = {
+  nodeId: string;
+  instruction: string;
+  at: number;
+  /** Tasks that the turn runs again or adds, and the save node when it saves. */
+  taskIds: string[];
+  /** The report version that the turn wrote. */
+  version: number | null;
+};
 export type ReportVersion = {
   version: number;
   at: number;
@@ -250,30 +262,45 @@ function applyEvent(state: State, event: MissionEvent): void {
       for (const node of event.payload.nodes) addTaskNode(state, node, false);
       addNode(state, { id: ASSEMBLER_ID, role: "assembler", title: "Write the report", instructions: "", dependsOn: [], isNew: false });
       addNode(state, { id: REPORT_ID, role: "report", title: "Report", instructions: "", dependsOn: [], isNew: false });
-      const saveTo = event.payload.saveTo;
-      if (saveTo) {
-        const app = isAppSlug(saveTo.app) ? appSpec(saveTo.app).name : saveTo.app;
-        addNode(state, {
-          id: SAVE_ID,
-          role: "librarian",
-          title: `Save the report to ${app}`,
-          instructions: `Save the finished report to ${app}${saveTo.target ? `, in ${saveTo.target}` : ""}.`,
-          dependsOn: [REPORT_ID],
-          isNew: false,
-        });
-      }
+      if (event.payload.saveTo) addSaveNode(state, event.payload.saveTo, false);
       rebuildEdges(state);
       return;
     }
 
     case "nodes_added": {
       for (const node of event.payload.nodes) addTaskNode(state, node, true);
+      if (event.payload.reason !== "revision") addTurnTasks(state, event.payload.nodes.map((node) => node.id));
       rebuildEdges(state);
       return;
     }
 
+    case "nodes_reset": {
+      for (const reset of event.payload.nodes) {
+        const node = state.nodes[reset.id];
+        if (!node) continue;
+        resetNode(node);
+        if (reset.instructions) node.instructions = reset.instructions;
+      }
+      addTurnTasks(state, event.payload.nodes.map((reset) => reset.id));
+      return;
+    }
+
+    case "save_requested": {
+      const node = state.nodes[SAVE_ID];
+      if (node) {
+        resetNode(node);
+        node.title = saveTitle(event.payload.app);
+        node.instructions = saveInstructions(event.payload);
+      } else {
+        addSaveNode(state, event.payload, true);
+        rebuildEdges(state);
+      }
+      addTurnTasks(state, [SAVE_ID]);
+      return;
+    }
+
     case "revision_requested": {
-      state.revisions.push({ nodeId: event.payload.nodeId, instruction: event.payload.instruction, at: event.at });
+      state.revisions.push({ nodeId: event.payload.nodeId, instruction: event.payload.instruction, at: event.at, taskIds: [], version: null });
       return;
     }
 
@@ -295,6 +322,7 @@ function applyEvent(state: State, event: MissionEvent): void {
       node.attempt = event.payload.attempt;
       node.model = event.payload.model;
       node.isNew = false;
+      node.rerun = false;
       node.queuedReason = null;
       node.startedAt ??= event.at;
       node.endedAt = null;
@@ -461,6 +489,8 @@ function applyEvent(state: State, event: MissionEvent): void {
         state.versions.push(entry);
         state.versions.sort((a, b) => a.version - b.version);
       }
+      const turn = openTurn(state);
+      if (turn) turn.version = version;
       const report = state.nodes[REPORT_ID];
       if (report) {
         report.status = "done";
@@ -532,6 +562,7 @@ function addNode(
     attempt: 0,
     model: null,
     isNew: spec.isNew,
+    rerun: false,
     queuedReason: null,
     lastThought: null,
     currentTool: null,
@@ -551,6 +582,52 @@ function addNode(
 
 function addTaskNode(state: State, node: PlanNode | TaskNode, isNew: boolean): void {
   addNode(state, { ...node, isNew });
+}
+
+function saveTitle(app: string): string {
+  return `Save the report to ${isAppSlug(app) ? appSpec(app).name : app}`;
+}
+
+function saveInstructions(saveTo: SaveTo): string {
+  const app = isAppSlug(saveTo.app) ? appSpec(saveTo.app).name : saveTo.app;
+  return `Save the finished report to ${app}${saveTo.target ? `, in ${saveTo.target}` : ""}.`;
+}
+
+/** The save step after the report (plan saveTo, or a follow-up). */
+function addSaveNode(state: State, saveTo: SaveTo, isNew: boolean): void {
+  addNode(state, {
+    id: SAVE_ID,
+    role: "librarian",
+    title: saveTitle(saveTo.app),
+    instructions: saveInstructions(saveTo),
+    dependsOn: [REPORT_ID],
+    isNew,
+  });
+}
+
+/** The latest follow-up turn while it runs. Turns run one at a time. */
+function openTurn(state: State): Draft<RevisionItem> | undefined {
+  const turn = state.revisions.at(-1);
+  const node = turn ? state.nodes[turn.nodeId] : undefined;
+  return turn && node && !isTerminalNodeStatus(node.status) ? turn : undefined;
+}
+
+function addTurnTasks(state: State, ids: readonly string[]): void {
+  const turn = openTurn(state);
+  if (!turn) return;
+  for (const id of ids) if (!turn.taskIds.includes(id)) turn.taskIds.push(id);
+}
+
+/** A node that a follow-up runs again. Its steps stay in the trace, under the old attempts. */
+function resetNode(node: NodeDraft): void {
+  node.status = "pending";
+  node.rerun = true;
+  node.error = null;
+  node.summary = null;
+  node.currentTool = null;
+  node.queuedReason = null;
+  node.startedAt = null;
+  node.endedAt = null;
 }
 
 function rebuildEdges(state: State): void {

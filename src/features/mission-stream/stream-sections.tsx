@@ -51,13 +51,15 @@ export function StatusLine() {
   const createdAt = useRun((state) => state.view.createdAt) ?? meta.createdAt;
   const durationMs = useRun((state) => state.view.durationMs) ?? meta.durationMs;
   const error = useRun((state) => state.view.error);
+  // Follow-ups run after the first run ended, so they time their own turn.
+  const turnAt = useRun((state) => state.view.revisions.at(-1)?.at ?? null);
   const active = isMissionActive(status);
   const now = useNow(1000, active);
-  const elapsed = active ? now - createdAt : (durationMs ?? 0);
+  const elapsed = active ? now - (turnAt ?? createdAt) : (durationMs ?? 0);
   const tokenText = `${formatTokens(tokens)} tokens`;
 
   let text: string;
-  if (active) text = `${status === "queued" ? "Starting" : "Working"} · ${formatDuration(elapsed)} · ${tokenText}`;
+  if (active) text = `${status === "queued" ? "Starting" : turnAt ? "Working on your follow-up" : "Working"} · ${formatDuration(elapsed)} · ${tokenText}`;
   else if (status === "completed") text = `Completed${partial ? " with missing parts" : ""} in ${formatDuration(elapsed)} · ${tokenText}`;
   else if (status === "failed") text = `Failed after ${formatDuration(elapsed)} · ${tokenText}`;
   else text = `Stopped after ${formatDuration(elapsed)} · ${tokenText}`;
@@ -82,7 +84,8 @@ export function StatusLine() {
 export function PlanList() {
   const nodeOrder = useRun((state) => state.view.nodeOrder);
   const nodes = useRun((state) => state.view.nodes);
-  const tasks = nodeOrder.filter((id) => isWorkerRole(nodes[id].role) || nodes[id].role === "revision");
+  // Follow-up turns show in the conversation, not in the plan.
+  const tasks = nodeOrder.filter((id) => isWorkerRole(nodes[id].role));
   if (tasks.length === 0) return null;
   return (
     <section className="flex flex-col gap-1" aria-label="Plan">

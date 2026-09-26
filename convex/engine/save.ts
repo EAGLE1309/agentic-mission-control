@@ -45,7 +45,8 @@ export const run = internalAction({
       { type: "thought", nodeId: SAVE_ID, payload: { step: 1, text: `Saving report v${version} to ${name}.` } },
     ]);
 
-    const callId = `${SAVE_ID}#v${version}`;
+    // A follow-up can save the same version again, so the call ID has the time too.
+    const callId = `${SAVE_ID}#v${version}-${Date.now().toString(36)}`;
     const inputText = JSON.stringify(
       { app: app.slug, title, ...(saveTo.target ? { target: saveTo.target } : {}), content: `Report v${version}, ${words} words` },
       null,
@@ -95,6 +96,7 @@ export const run = internalAction({
     const parent = /^Parent page: (.+)$/m.exec(outcome.fullText)?.[1];
     const summary = `Saved report v${version} to ${name}${parent ? ` under “${parent}”` : ""}.`;
     const sources: Source[] = url ? [{ title, url }] : [];
+    if (url) await ctx.runMutation(internal.engine.state.recordSave, { missionId, app: app.slug, url, title, version });
     const outputArtifactId = await saveArtifact(ctx, {
       missionId,
       nodeId: SAVE_ID,

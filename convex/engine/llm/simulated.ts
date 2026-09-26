@@ -146,6 +146,74 @@ function revisedReport(sim: SimContext): string {
   return lines.join("\n");
 }
 
+/**
+ * The director of a follow-up turn in simulated mode. Plain word rules stand in
+ * for the model: questions get answers, "retry" reruns the failed tasks, an app
+ * name with "save" or "write" saves the report, "librarian" or "research" adds
+ * a task, and anything else edits the report text.
+ */
+function simulatedTurn(sim: SimContext) {
+  const turn = sim.turn;
+  const text = turn?.message.toLowerCase() ?? "";
+  const tasks = turn?.tasks ?? [];
+  const apps = sim.apps ?? [];
+  const has = (pattern: RegExp) => pattern.test(text);
+  const empty = { rerun: [], add: [], report: "keep" as const, reportInstruction: null, saveTo: null };
+  const taskId = (base: string) => {
+    let id = base;
+    for (let n = 2; tasks.some((task) => task.id === id); n += 1) id = `${base}-${n}`;
+    return id;
+  };
+
+  const failed = tasks.filter((task) => task.status === "failed" || task.status === "killed");
+  const saveApp = apps.find((app) => app.write && app.slug !== "slack" && app.slug !== "github" && (text.includes(app.name.toLowerCase()) || text.includes(app.slug)));
+  const searchApp = apps.find((app) => app.read && (text.includes(app.name.toLowerCase()) || text.includes(app.slug))) ?? apps.find((app) => app.read);
+
+  if (has(/\b(link|where)\b/) && turn?.saves.length) {
+    const copy = turn.saves.at(-1);
+    return { ...empty, reply: `The report is saved here: ${copy?.url}.` };
+  }
+  if (has(/\?\s*$/) && !has(/\b(can you|could you|please)\b/)) {
+    const done = tasks.filter((task) => task.status === "done").length;
+    return { ...empty, reply: `This mission has ${tasks.length} tasks: ${done} done and ${failed.length} failed or stopped. Ask me to retry them, add a task, or change the report.` };
+  }
+  if (has(/\b(retry|rerun|run again|again|fix)\b/)) {
+    const named = tasks.filter((task) => text.includes(task.id) || text.includes(task.title.toLowerCase()));
+    const chosen = named.length > 0 ? named : failed;
+    if (chosen.length === 0) return { ...empty, reply: "No task failed, so there is nothing to retry. Name a task to run it again." };
+    return {
+      ...empty,
+      reply: `Running ${chosen.map((task) => `“${task.title}”`).join(", ")} again, then writing a new version of the report.`,
+      rerun: chosen.map((task) => ({ id: task.id, instructions: null })),
+      report: "rewrite" as const,
+    };
+  }
+  const add: { id: string; role: "researcher" | "librarian"; title: string; instructions: string; dependsOn: string[] }[] = [];
+  if (has(/\b(librarian|my notes|my docs|search my)\b/) && searchApp && has(/\b(search|find|look|check|read)\b/)) {
+    add.push({
+      id: taskId(`${searchApp.slug}-search`),
+      role: "librarian",
+      title: `Search ${searchApp.name}`.slice(0, 60),
+      instructions: `Search ${searchApp.name} for: ${turn?.message ?? ""}`,
+      dependsOn: [],
+    });
+  }
+  if (has(/\b(research|look up|find out|add a task|researcher)\b/) && add.length === 0) {
+    add.push({ id: taskId("more-research"), role: "researcher", title: "More research", instructions: turn?.message ?? "", dependsOn: [] });
+  }
+  const saveTo = saveApp && has(/\b(save|write|put|send|export|copy)\b/) ? { app: saveApp.slug } : null;
+  if (add.length > 0 || saveTo) {
+    const parts = [
+      add.length > 0 ? `add ${add.map((task) => `“${task.title}”`).join(", ")}` : null,
+      add.length > 0 ? "write a new version of the report" : null,
+      saveTo ? `save the report to ${saveApp?.name}` : null,
+    ].filter(Boolean);
+    return { ...empty, reply: `I will ${parts.join(", then ")}.`, add, report: add.length > 0 ? ("rewrite" as const) : ("keep" as const), saveTo };
+  }
+  if (!turn?.hasReport) return { ...empty, reply: "There is no report yet. Ask me to retry the failed tasks first." };
+  return { ...empty, reply: "I will change the report as you asked.", report: "revise" as const, reportInstruction: turn?.message ?? "" };
+}
+
 export function createSimulatedClient(): LlmClient {
   return {
     mode: "simulated",
@@ -159,6 +227,17 @@ export function createSimulatedClient(): LlmClient {
       const rng = seededRandom(args.sim.seed);
       const started = Date.now();
       await sleep(rng.int(900, 1800));
+
+      if (args.sim.turn) {
+        const turn = simulatedTurn(args.sim);
+        const object = args.schema.parse(turn);
+        return {
+          object,
+          usage: { inputTokens: estimateTokens(args.system + args.prompt), outputTokens: estimateTokens(JSON.stringify(turn)) },
+          model: this.modelFor(args.role),
+          latencyMs: Math.round(Date.now() - started),
+        };
+      }
 
       const goal = args.sim.goal;
       const count = rng.int(2, 3);

@@ -6,8 +6,10 @@ import { checkUrlShape, isBlockedAddress } from "./engine/tools/ssrf";
 import { BLOCKED_MODELS, MODEL_PRESETS, effectiveChains, modelOverrides } from "../src/shared/models";
 import { APPS } from "../src/shared/apps";
 import { SEARCH_ACTIONS, WRITE_ACTIONS, formatCreated, formatSearch, notionPageId } from "./engine/tools/appActions";
-import { SAVE_ID, flowEdges, validatePlan } from "../src/shared/plan";
+import { SAVE_ID, flowEdges, rerunClosure, validateAddedTasks, validatePlan } from "../src/shared/plan";
 import { reduceEvents } from "../src/shared/reducer";
+import type { MissionEvent } from "../src/shared/events";
+import { turnSchema, validateTurn } from "./engine/direct";
 import { configuredServices, formatHits, parseHits, searchInOrder, type SearchHit } from "./engine/tools/search";
 
 describe("SSRF guard", () => {
@@ -158,6 +160,66 @@ describe("save step", () => {
     expect(validatePlan([{ id: "save", role: "researcher", title: "T", instructions: "I", dependsOn: [] }, { id: "b", role: "researcher", title: "T", instructions: "I", dependsOn: [] }])).toContainEqual(
       expect.stringMatching(/reserved/),
     );
+  });
+
+  test("a follow-up turn tracks its reruns, its save, and the version it wrote", () => {
+    const base = { missionId: "m" as never, at: 1 };
+    let seq = 0;
+    const next = <T extends object>(event: T) => ({ ...base, seq: (seq += 1), ...event });
+    const view = reduceEvents([
+      next({ type: "mission_created", payload: { goal: "G", modelProfile: "balanced", mode: "simulated" } }),
+      next({
+        type: "plan_created",
+        nodeId: "orchestrator",
+        payload: {
+          title: "T",
+          rationale: "R",
+          nodes: [
+            { id: "a", role: "researcher", title: "A", instructions: "I", dependsOn: [] },
+            { id: "b", role: "writer", title: "B", instructions: "I", dependsOn: ["a"] },
+          ],
+        },
+      }),
+      next({ type: "node_failed", nodeId: "a", payload: { error: "Boom", retryable: false, attempt: 1 } }),
+      next({ type: "revision_requested", payload: { instruction: "Retry and save to Notion", nodeId: "revision-1" } }),
+      next({
+        type: "nodes_added",
+        payload: { reason: "revision", nodes: [{ id: "revision-1", role: "revision", title: "Retry", instructions: "Retry", dependsOn: [] }] },
+      }),
+      next({ type: "nodes_reset", payload: { nodes: [{ id: "a", instructions: "New focus" }, { id: "b" }] } }),
+      next({ type: "save_requested", payload: { app: "notion" } }),
+      next({ type: "deliverable_ready", payload: { version: 2, words: 10, sourceCount: 0 } }),
+    ] as MissionEvent[]);
+    expect(view.nodes.a).toMatchObject({ status: "pending", rerun: true, error: null, instructions: "New focus" });
+    expect(view.nodes[SAVE_ID]).toMatchObject({ status: "pending", title: "Save the report to Notion" });
+    expect(view.revisions[0]).toMatchObject({ taskIds: ["a", "b", SAVE_ID], version: 2 });
+  });
+
+  test("a rerun takes the tasks downstream, and added tasks need new IDs and real dependencies", () => {
+    const tasks = [
+      { id: "a", dependsOn: [] },
+      { id: "b", dependsOn: [] },
+      { id: "c", dependsOn: ["a"] },
+      { id: "d", dependsOn: ["c", "b"] },
+    ];
+    expect(rerunClosure(tasks, ["a"])).toEqual(["a", "c", "d"]);
+    expect(rerunClosure(tasks, ["b"])).toEqual(["b", "d"]);
+    expect(rerunClosure(tasks, [])).toEqual([]);
+
+    const task = (id: string, dependsOn: string[] = []) => ({ id, role: "researcher" as const, title: "T", instructions: "I", dependsOn });
+    expect(validateAddedTasks(tasks, [task("e", ["a"])], 12)).toEqual([]);
+    expect(validateAddedTasks(tasks, [task("a")], 12).join(" ")).toMatch(/already used/);
+    expect(validateAddedTasks(tasks, [task("e", ["zzz"])], 12).join(" ")).toMatch(/not a task/);
+    expect(validateAddedTasks(tasks, [task("save")], 12).join(" ")).toMatch(/reserved/);
+    expect(validateAddedTasks(tasks, [task("e"), task("f")], 5).join(" ")).toMatch(/12|5 tasks at most/);
+
+    const state = { tasks: tasks.map((item) => ({ ...item, role: "researcher", title: "T", instructions: "I", status: "failed" as const, error: null, summary: null })), apps: [] };
+    const turn = (patch: object) => turnSchema.parse({ reply: "OK", ...patch });
+    expect(validateTurn(turn({ rerun: [{ id: "a" }], report: "rewrite" }), state)).toEqual([]);
+    expect(validateTurn(turn({ rerun: [{ id: "nope" }] }), state).join(" ")).toMatch(/not a task/);
+    expect(validateTurn(turn({ report: "rewrite" }), state).join(" ")).toMatch(/No task finished/);
+    expect(validateTurn(turn({ saveTo: { app: "notion" } }), state).join(" ")).toMatch(/No app can take the report/);
+    expect(validateTurn(turn({ add: [{ ...task("lib"), role: "librarian" }] }), state).join(" ")).toMatch(/no connected apps/);
   });
 
   test("a plan with saveTo adds the save node to the view", () => {

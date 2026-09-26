@@ -13,7 +13,7 @@ import {
   SECTION_INPUT_MAX_CHARS,
   STUCK_MISSION_MS,
 } from "../../src/shared/constants";
-import { ACTIVE_MISSION_STATUSES, isMissionActive, source, type Source } from "../../src/shared/events";
+import { ACTIVE_MISSION_STATUSES, isMissionActive, source, type Source, type WorkerRole } from "../../src/shared/events";
 import { isTerminalNodeStatus, readyNodeIds } from "../../src/shared/plan";
 import { stripSources } from "../../src/shared/report";
 
@@ -97,7 +97,7 @@ export const workerContext = internalQuery({
 });
 
 export const assembleContext = internalQuery({
-  args: { missionId: v.id("missions"), revisionNodeId: v.optional(v.string()) },
+  args: { missionId: v.id("missions") },
   handler: async (ctx, args) => {
     const mission = await ctx.db.get("missions", args.missionId);
     if (!mission) return null;
@@ -121,7 +121,6 @@ export const assembleContext = internalQuery({
       .withIndex("by_missionId_and_version", (q) => q.eq("missionId", args.missionId))
       .order("desc")
       .first();
-    const revision = args.revisionNodeId ? nodes.find((row) => row.nodeId === args.revisionNodeId) : undefined;
     return {
       ...base(mission),
       inputs,
@@ -129,7 +128,6 @@ export const assembleContext = internalQuery({
       nextVersion: (latest?.version ?? 0) + 1,
       previousReport: latest ? clip(stripSources(latest.markdown), REPORT_INPUT_MAX_CHARS) : null,
       previousSources: latest?.sources ?? [],
-      instruction: revision?.instructions ?? null,
     };
   },
 });
@@ -152,6 +150,112 @@ export const saveContext = internalQuery({
       report: latest ? { version: latest.version, words: latest.words, markdown: latest.markdown } : null,
       apps: await usableAppsFor(ctx, mission.userId),
     };
+  },
+});
+
+/** The report text that the director reads. Longer reports are cut. */
+const DIRECT_REPORT_MAX_CHARS = 8_000;
+
+/**
+ * A follow-up turn (FR-25): the message, each task with its state, the earlier
+ * turns, the latest report, the saved copies, and the apps of the user.
+ */
+export const directContext = internalQuery({
+  args: { missionId: v.id("missions"), nodeId: v.string() },
+  handler: async (ctx, args) => {
+    const mission = await ctx.db.get("missions", args.missionId);
+    if (!mission) return null;
+    const nodes = (await nodesOf(ctx, args.missionId)).sort((a, b) => a._creationTime - b._creationTime);
+    const turn = nodes.find((row) => row.nodeId === args.nodeId);
+    if (!turn) return null;
+    const latest = await ctx.db
+      .query("deliverables")
+      .withIndex("by_missionId_and_version", (q) => q.eq("missionId", args.missionId))
+      .order("desc")
+      .first();
+    return {
+      ...base(mission),
+      userId: mission.userId,
+      message: turn.instructions,
+      tasks: nodes
+        .filter((row) => row.role !== "revision")
+        .map((row) => ({
+          id: row.nodeId,
+          role: row.role as WorkerRole,
+          title: row.title,
+          instructions: row.instructions,
+          status: row.status,
+          dependsOn: row.dependsOn,
+          error: row.error ?? null,
+          summary: row.summary ?? null,
+        })),
+      turns: nodes
+        .filter((row) => row.role === "revision" && row.nodeId !== args.nodeId)
+        .map((row) => ({ message: row.instructions, status: row.status, summary: row.summary ?? null })),
+      report: latest
+        ? { version: latest.version, words: latest.words, markdown: clip(stripSources(latest.markdown), DIRECT_REPORT_MAX_CHARS) }
+        : null,
+      saves: mission.saves ?? [],
+      apps: await usableAppsFor(ctx, mission.userId),
+    };
+  },
+});
+
+/** The save step made a copy of the report: the director can give its link later. */
+export const recordSave = internalMutation({
+  args: { missionId: v.id("missions"), app: v.string(), url: v.string(), title: v.string(), version: v.number() },
+  handler: async (ctx, { missionId, ...copy }) => {
+    const mission = await ctx.db.get("missions", missionId);
+    if (!mission) return;
+    await ctx.db.patch("missions", missionId, { saves: [...(mission.saves ?? []), copy].slice(-20) });
+  },
+});
+
+function count(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * The end of a follow-up turn: the turn node gets a summary of what happened,
+ * then the mission completes again. A failed save marks the mission partial.
+ */
+export const closeTurn = internalMutation({
+  args: {
+    missionId: v.id("missions"),
+    nodeId: v.string(),
+    taskIds: v.array(v.string()),
+    report: v.union(v.literal("none"), v.literal("written"), v.literal("failed")),
+    save: v.union(v.literal("none"), v.literal("saved"), v.literal("failed")),
+    saveApp: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const nodes = await nodesOf(ctx, args.missionId);
+    const turn = nodes.find((row) => row.nodeId === args.nodeId);
+    const latest = await ctx.db
+      .query("deliverables")
+      .withIndex("by_missionId_and_version", (q) => q.eq("missionId", args.missionId))
+      .order("desc")
+      .first();
+    const parts: string[] = [];
+    if (args.taskIds.length > 0) {
+      const failed = nodes.filter((row) => args.taskIds.includes(row.nodeId) && row.status !== "done").length;
+      parts.push(`Ran ${count(args.taskIds.length, "task")}${failed > 0 ? `, ${failed} failed` : ""}`);
+    }
+    if (args.report === "written" && latest) parts.push(`Report v${latest.version}`);
+    if (args.report === "failed") parts.push("The report did not change");
+    const app = args.saveApp ?? "the app";
+    if (args.save === "saved") parts.push(`Saved to ${app}`);
+    if (args.save === "failed") parts.push(`Not saved to ${app}`);
+    if (turn && !isTerminalNodeStatus(turn.status)) {
+      await appendEventsTx(ctx, args.missionId, [
+        { type: "node_done", nodeId: args.nodeId, payload: { summary: parts.join(" · ") || "Answered", sources: [] } },
+      ]);
+    }
+    await finishTx(ctx, {
+      missionId: args.missionId,
+      notify: args.taskIds.length > 0 || args.report !== "none",
+      partial: args.save === "failed",
+    });
   },
 });
 

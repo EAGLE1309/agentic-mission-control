@@ -9,8 +9,9 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import { Conversation } from "./conversation";
+import { FollowUpComposer } from "./follow-up-composer";
 import { GoalCard } from "./goal-card";
-import { RevisionComposer } from "./revision-composer";
 import { ActivityList, Narration, PlanList, ReportCard, StatusLine } from "./stream-sections";
 
 /**
@@ -41,6 +42,9 @@ export function StreamPanel() {
               <MessageScrollerItem messageId="report">
                 <ReportCard />
               </MessageScrollerItem>
+              <MessageScrollerItem messageId="conversation">
+                <Conversation />
+              </MessageScrollerItem>
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton direction="end" variant="outline" size="sm" className="bottom-2 h-8 gap-1.5 rounded-full px-3 text-xs">
@@ -49,10 +53,10 @@ export function StreamPanel() {
           </MessageScrollerButton>
         </MessageScroller>
       </MessageScrollerProvider>
-      <span id="revision-label" className="sr-only">
-        Ask for changes to the report
+      <span id="follow-up-label" className="sr-only">
+        Message the orchestrator about this mission
       </span>
-      <RevisionComposer />
+      <FollowUpComposer />
     </div>
   );
 }

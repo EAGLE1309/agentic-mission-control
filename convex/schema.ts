@@ -43,8 +43,10 @@ export default defineSchema({
     endedAt: v.optional(v.number()),
     /** Duration of the first run, kept for revisions. */
     durationMs: v.optional(v.number()),
-    /** The app that gets the finished report, from the plan. */
+    /** The app that gets the finished report, from the plan or a follow-up. */
     saveTo: v.optional(saveTo),
+    /** Copies of the report that the save step made, oldest first. */
+    saves: v.optional(v.array(v.object({ app: v.string(), url: v.string(), title: v.string(), version: v.number() }))),
     lastActivityAt: v.number(),
   })
     .index("by_userId", ["userId"])

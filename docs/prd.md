@@ -102,7 +102,7 @@ The v1 target: the full loop works from end to end, and each screen is complete.
 ### 7.6 Deliverable and follow-up
 
 - **FR-24** The report shows as formatted markdown with sources that the user can click. The user can copy the report or download it as `.md`.
-- **FR-25** After completion, the user can type a revision instruction. The revision shows as a new node on the graph and makes a new report version. The user can still see the old versions.
+- **FR-25** After a mission completes, fails, or stops, the user can write to the orchestrator in the chat. The orchestrator sees the whole graph. It answers questions, runs failed or chosen tasks again, adds tasks for any agent, rewrites or edits the report, and saves the report to a connected app. Each turn shows in the chat with its tasks and result, and a report change makes a new version. The user can still see the old versions. A goal can also ask to save the report to an app from the start.
 
 ### 7.7 History, Inbox, usage
 

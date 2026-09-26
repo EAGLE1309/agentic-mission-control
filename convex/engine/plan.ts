@@ -16,28 +16,28 @@ import { planPrompt } from "./prompts";
 // valid goes back to the model with its errors, 2 times at most. The user
 // never sees a partial plan (FR-12).
 
+/** One task from the model. Follow-ups add tasks with the same shape. */
+export const taskSchema = z.object({
+  id: z.string().trim(),
+  role: z.enum(["researcher", "writer", "librarian"]),
+  title: z.string().trim().max(200),
+  instructions: z.string().trim().max(4_000),
+  dependsOn: z.array(z.string().trim()).default([]),
+});
+
+export const saveToSchema = z
+  .object({ app: z.string().trim(), target: z.string().trim().max(200).nullish() })
+  .nullish();
+
 const planSchema = z.object({
   title: z.string().trim().min(1).max(200),
   rationale: z.string().trim().max(1_000).default(""),
-  nodes: z
-    .array(
-      z.object({
-        id: z.string().trim(),
-        role: z.enum(["researcher", "writer", "librarian"]),
-        title: z.string().trim().max(200),
-        instructions: z.string().trim().max(4_000),
-        dependsOn: z.array(z.string().trim()).default([]),
-      }),
-    )
-    .min(1)
-    .max(12),
-  saveTo: z
-    .object({ app: z.string().trim(), target: z.string().trim().max(200).nullish() })
-    .nullish(),
+  nodes: z.array(taskSchema).min(1).max(12),
+  saveTo: saveToSchema,
 });
 
-/** Plan errors for saveTo, in plain words for the model. */
-function saveToErrors(saveTo: z.infer<typeof planSchema>["saveTo"], apps: readonly UsableApp[]): string[] {
+/** Errors for saveTo, in plain words for the model. */
+export function saveToErrors(saveTo: z.infer<typeof saveToSchema>, apps: readonly UsableApp[]): string[] {
   if (!saveTo) return [];
   const writable = apps.filter((app) => app.write && appSpec(app.slug).write);
   const app = writable.find((item) => item.slug === saveTo.app);
@@ -49,7 +49,7 @@ function saveToErrors(saveTo: z.infer<typeof planSchema>["saveTo"], apps: readon
     ];
   }
   const write = appSpec(app.slug).write;
-  if (write?.needsTarget && !saveTo.target) return [`saveTo.target is needed for ${app.name}: ${write.target}. If the goal does not name it, set saveTo to null.`];
+  if (write?.needsTarget && !saveTo.target) return [`saveTo.target is needed for ${app.name}: ${write.target}. If the user did not name it, set saveTo to null.`];
   return [];
 }
 

@@ -79,6 +79,63 @@ export function validatePlan(nodes: readonly PlanNode[]): string[] {
   return errors;
 }
 
+/**
+ * Check the tasks that a follow-up adds to a mission (FR-25). The IDs are new,
+ * the dependencies exist, and the graph has no cycle. Errors are plain words
+ * for the model, like validatePlan.
+ */
+export function validateAddedTasks(
+  existing: readonly { id: string; dependsOn: readonly string[] }[],
+  added: readonly PlanNode[],
+  maxTotal: number,
+): string[] {
+  const errors: string[] = [];
+  if (added.length === 0) return errors;
+  if (existing.length + added.length > maxTotal) {
+    errors.push(`A mission has ${maxTotal} tasks at most. It has ${existing.length}, so add ${Math.max(0, maxTotal - existing.length)} or less.`);
+  }
+  const ids = new Set(existing.map((node) => node.id));
+  for (const node of added) {
+    if (!PLAN_NODE_ID_PATTERN.test(node.id)) {
+      errors.push(`Task ID "${node.id}" is not valid. Use 1 to 32 characters: a-z, 0-9, and "-".`);
+    } else if (isReservedNodeId(node.id)) {
+      errors.push(`Task ID "${node.id}" is reserved. Use a different ID.`);
+    }
+    if (ids.has(node.id)) errors.push(`Task ID "${node.id}" is already used. Give the new task a new ID.`);
+    ids.add(node.id);
+    if (!node.title.trim()) errors.push(`Task "${node.id}" has no title.`);
+    if (!node.instructions.trim()) errors.push(`Task "${node.id}" has no instructions.`);
+  }
+  for (const node of added) {
+    for (const dep of node.dependsOn) {
+      if (dep === node.id) errors.push(`Task "${node.id}" depends on itself.`);
+      else if (!ids.has(dep)) errors.push(`Task "${node.id}" depends on "${dep}", which is not a task.`);
+    }
+  }
+  const cycle = findCycle([...existing, ...added]);
+  if (cycle) errors.push(`The dependencies make a cycle: ${cycle.join(" -> ")}.`);
+  return errors;
+}
+
+/**
+ * The tasks to run again: the chosen ones and each task that depends on them,
+ * in plan order. Their old outputs are stale when an input changes.
+ */
+export function rerunClosure(nodes: readonly { id: string; dependsOn: readonly string[] }[], ids: readonly string[]): string[] {
+  const chosen = new Set(ids);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const node of nodes) {
+      if (!chosen.has(node.id) && node.dependsOn.some((dep) => chosen.has(dep))) {
+        chosen.add(node.id);
+        grew = true;
+      }
+    }
+  }
+  return nodes.filter((node) => chosen.has(node.id)).map((node) => node.id);
+}
+
 /** Returns one cycle as a list of IDs, or null. Ignores unknown dependencies. */
 function findCycle(nodes: readonly { id: string; dependsOn: readonly string[] }[]): string[] | null {
   const byId = new Map(nodes.map((node) => [node.id, node]));

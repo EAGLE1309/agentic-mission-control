@@ -45,9 +45,14 @@ export const ADMISSION_MIN_DAILY_CALLS = 45;
 export const PROVIDER_429_MAX_ATTEMPTS = 3;
 
 // Missions (tech spec §7.1, §11)
-export const MAX_REVISIONS = 3;
+/** Follow-up turns in the chat of one mission (FR-25). Each can write a report version. */
+export const MAX_FOLLOW_UPS = 10;
 export const GOAL_MAX_CHARS = 4_000;
-export const REVISION_MAX_CHARS = 2_000;
+export const FOLLOW_UP_MAX_CHARS = 2_000;
+/** Model calls that each follow-up turn adds to the mission budget. */
+export const FOLLOW_UP_CALL_BUDGET = 40;
+/** Tasks in one mission, with the tasks that follow-ups add. */
+export const MAX_TASKS_TOTAL = 12;
 export const STUCK_MISSION_MS = 10 * 60_000;
 export const STUCK_SWEEP_MINUTES = 5;
 

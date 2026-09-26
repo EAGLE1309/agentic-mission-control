@@ -12,10 +12,12 @@ import { addUserStats } from "./lib/stats";
 import { MISSION_QUOTA_OFF, limits, nextUtcDay } from "./limits";
 import {
   ADMISSION_MIN_DAILY_CALLS,
+  FOLLOW_UP_CALL_BUDGET,
+  FOLLOW_UP_MAX_CHARS,
   GOAL_MAX_CHARS,
-  MAX_REVISIONS,
+  MAX_FOLLOW_UPS,
+  MAX_TASKS_TOTAL,
   MISSION_CALL_BUDGET,
-  REVISION_MAX_CHARS,
 } from "../src/shared/constants";
 import { appError } from "../src/shared/errors";
 import { isMissionActive, modelProfile } from "../src/shared/events";
@@ -102,50 +104,60 @@ export const stop = mutation({
   },
 });
 
-/** Ask for changes to the report (FR-25). 3 revisions for each mission at most. */
-export const revise = mutation({
-  args: { missionId: v.id("missions"), instruction: v.string() },
+/**
+ * A follow-up turn in the chat of a finished, failed, or stopped mission
+ * (FR-25). The orchestrator reads the mission and the message, then reruns
+ * tasks, adds tasks, changes the report, or saves it to an app. `rerun` skips
+ * the model: the Rerun buttons send the task IDs. 10 turns for each mission.
+ */
+export const followUp = mutation({
+  args: { missionId: v.id("missions"), message: v.string(), rerun: v.optional(v.array(v.string())) },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     const mission = await getOwnedMission(ctx, args.missionId, user.userId);
-    if (mission.status !== "completed") {
-      throw appError("INVALID_INPUT", { message: "You can ask for changes when the report is ready." });
+    if (isMissionActive(mission.status)) {
+      throw appError("INVALID_INPUT", { message: "Wait until this step finishes, or stop the mission." });
     }
-    const latest = await ctx.db
-      .query("deliverables")
-      .withIndex("by_missionId_and_version", (q) => q.eq("missionId", mission._id))
-      .order("desc")
-      .first();
-    if (!latest) throw appError("INVALID_INPUT", { message: "This mission has no report to change." });
-    if (mission.revisionCount >= MAX_REVISIONS) {
+    if (mission.revisionCount >= MAX_FOLLOW_UPS) {
       throw appError("INVALID_INPUT", {
-        message: `This mission has ${MAX_REVISIONS} revisions. Start a new mission for more changes.`,
+        message: `This mission has ${MAX_FOLLOW_UPS} follow-ups. Start a new mission for more changes.`,
       });
     }
-    const instruction = args.instruction.trim();
-    if (!instruction) throw appError("INVALID_INPUT", { message: "Enter the change you want." });
-    if (instruction.length > REVISION_MAX_CHARS) {
-      throw appError("INVALID_INPUT", { message: `Shorten the change to ${REVISION_MAX_CHARS} characters or less.` });
+    const message = args.message.trim();
+    if (!message) throw appError("INVALID_INPUT", { message: "Enter what you want to do next." });
+    if (message.length > FOLLOW_UP_MAX_CHARS) {
+      throw appError("INVALID_INPUT", { message: `Shorten the message to ${FOLLOW_UP_MAX_CHARS} characters or less.` });
+    }
+    const rerun = args.rerun?.slice(0, MAX_TASKS_TOTAL);
+    if (rerun && rerun.length === 0) throw appError("INVALID_INPUT", { message: "Pick a task to run again." });
+    if (mission.mode === "live") {
+      const capacity = await limits.check(ctx, "openrouterDay", { count: 3 });
+      if (!capacity.ok) throw appError("CAPACITY_EXHAUSTED", { resetAt: nextUtcDay(Date.now()) });
     }
 
     const count = mission.revisionCount + 1;
     const nodeId = revisionNodeId(count);
     await appendEventsTx(ctx, mission._id, [
-      { type: "revision_requested", payload: { instruction, nodeId } },
+      { type: "revision_requested", payload: { instruction: message, nodeId } },
       {
         type: "nodes_added",
         payload: {
           reason: "revision",
-          nodes: [{ id: nodeId, role: "revision", title: shorten(instruction, 80), instructions: instruction, dependsOn: [] }],
+          nodes: [{ id: nodeId, role: "revision", title: shorten(message, 80), instructions: message, dependsOn: [] }],
         },
       },
-      { type: "mission_status", payload: { status: "assembling" } },
+      { type: "mission_status", payload: { status: "planning" } },
     ]);
-    await ctx.db.patch("missions", mission._id, { revisionCount: count, stopRequested: false });
+    await ctx.db.patch("missions", mission._id, {
+      revisionCount: count,
+      stopRequested: false,
+      // Each turn gets its own model calls, on top of what the mission used.
+      budget: Math.max(mission.budget, mission.callsReserved + FOLLOW_UP_CALL_BUDGET),
+    });
     const workflowId = await workflow.start(
       ctx,
-      internal.engine.workflow.revisionWorkflow,
-      { missionId: mission._id, nodeId },
+      internal.engine.workflow.followUpWorkflow,
+      { missionId: mission._id, nodeId, ...(rerun ? { rerunIds: rerun } : {}) },
       { onComplete: internal.engine.workflow.onComplete, context: { missionId: mission._id, kind: "revision", nodeId } },
     );
     await ctx.db.patch("missions", mission._id, { workflowId });
@@ -172,7 +184,7 @@ export const get = query({
       mode: mission.mode,
       modelProfile: mission.modelProfile,
       revisionCount: mission.revisionCount,
-      maxRevisions: MAX_REVISIONS,
+      maxFollowUps: MAX_FOLLOW_UPS,
       createdAt: mission._creationTime,
       endedAt: mission.endedAt ?? null,
       durationMs: mission.durationMs ?? null,

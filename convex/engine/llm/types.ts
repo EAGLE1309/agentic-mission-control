@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import type { AgentRole } from "../../../src/shared/agents";
 import type { UsableApp } from "../../../src/shared/apps";
-import type { MissionMode, Source, TaskRole, ToolName } from "../../../src/shared/events";
+import type { MissionMode, NodeStatus, Source, TaskRole, ToolName } from "../../../src/shared/events";
 
 // The model layer (tech spec §7.2). The engine talks only to LlmClient.
 // Implementations: simulated (M3) and OpenRouter (M5).
@@ -36,6 +36,13 @@ export type SimContext = {
   previousReport?: string;
   /** Apps of the user: the planner may add a librarian task, and the librarian uses them. */
   apps?: UsableApp[];
+  /** A follow-up turn: the message and the tasks that the director sees (FR-25). */
+  turn?: {
+    message: string;
+    tasks: { id: string; role: string; title: string; status: NodeStatus }[];
+    hasReport: boolean;
+    saves: { app: string; url: string }[];
+  };
 };
 
 export type StepArgs = {

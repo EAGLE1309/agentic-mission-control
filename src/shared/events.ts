@@ -102,6 +102,12 @@ const nodesAdded = defineEvent("nodes_added", {
   nodes: v.array(taskNode),
   reason: v.union(v.literal("revision"), v.literal("replan"), v.literal("user_branch")),
 });
+/** A follow-up runs tasks again: each goes back to pending, with new instructions when given. */
+const nodesReset = defineEvent("nodes_reset", {
+  nodes: v.array(v.object({ id: v.string(), instructions: v.optional(v.string()) })),
+});
+/** A follow-up asks to save the report to an app. The save step runs after the report. */
+const saveRequested = defineEvent("save_requested", saveTo.fields);
 const nodeQueued = defineEvent("node_queued", {
   reason: v.string(),
   retryAfterMs: v.optional(v.number()),
@@ -165,6 +171,8 @@ export const eventInput = v.union(
   missionStatusChanged.input,
   planCreated.input,
   nodesAdded.input,
+  nodesReset.input,
+  saveRequested.input,
   nodeQueued.input,
   nodeStarted.input,
   thought.input,
@@ -186,6 +194,8 @@ export const eventRow = v.union(
   missionStatusChanged.row,
   planCreated.row,
   nodesAdded.row,
+  nodesReset.row,
+  saveRequested.row,
   nodeQueued.row,
   nodeStarted.row,
   thought.row,

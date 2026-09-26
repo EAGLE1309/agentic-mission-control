@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
-import { MISSIONS_PER_USER_PER_DAY } from "../src/shared/constants";
+import { MAX_FOLLOW_UPS, MISSIONS_PER_USER_PER_DAY } from "../src/shared/constants";
 import { ALICE, BOB, setup } from "./test.helpers";
 
 // Fake timers keep the workflows from running: these tests cover the public
@@ -67,7 +67,7 @@ describe("missions.create", () => {
   });
 });
 
-describe("missions.stop and missions.revise", () => {
+describe("missions.stop and missions.followUp", () => {
   test("stop ends an active mission once, for the owner only", async () => {
     const t = setup();
     const alice = t.withIdentity(ALICE);
@@ -80,19 +80,26 @@ describe("missions.stop and missions.revise", () => {
     await expect(alice.mutation(api.missions.stop, { missionId })).rejects.toThrow(/MISSION_NOT_ACTIVE/);
   });
 
-  test("revise needs a completed mission with a report", async () => {
+  test("a follow-up waits for the mission to end, then opens a turn with more budget", async () => {
     const t = setup();
     const alice = t.withIdentity(ALICE);
     const missionId = await alice.mutation(api.missions.create, { goal, modelProfile: "balanced" });
 
-    await expect(alice.mutation(api.missions.revise, { missionId, instruction: "Shorter, please." })).rejects.toThrow(
-      /INVALID_INPUT/,
-    );
+    // Not while it runs, not empty, and not for another user.
+    await expect(alice.mutation(api.missions.followUp, { missionId, message: "Retry the failed tasks." })).rejects.toThrow(/INVALID_INPUT/);
+    await t.run((ctx) => ctx.db.patch("missions", missionId, { status: "failed", callsReserved: 60 }));
+    await expect(alice.mutation(api.missions.followUp, { missionId, message: "   " })).rejects.toThrow(/INVALID_INPUT/);
+    await expect(t.withIdentity(BOB).mutation(api.missions.followUp, { missionId, message: "Hi" })).rejects.toThrow(/NOT_FOUND/);
 
-    await t.run((ctx) => ctx.db.patch("missions", missionId, { status: "completed" }));
-    await expect(alice.mutation(api.missions.revise, { missionId, instruction: "Shorter, please." })).rejects.toThrow(
-      /INVALID_INPUT/,
-    );
+    // A failed mission can be driven again.
+    await alice.mutation(api.missions.followUp, { missionId, message: "Retry the failed tasks." });
+    const mission = await t.run((ctx) => ctx.db.get("missions", missionId));
+    expect(mission).toMatchObject({ status: "planning", revisionCount: 1, budget: 100 });
+    const events = await alice.query(api.events.page, { missionId, afterSeq: 1 });
+    expect(events.map((event) => event.type)).toEqual(["revision_requested", "nodes_added", "mission_status"]);
+
+    await t.run((ctx) => ctx.db.patch("missions", missionId, { status: "completed", revisionCount: MAX_FOLLOW_UPS }));
+    await expect(alice.mutation(api.missions.followUp, { missionId, message: "One more." })).rejects.toThrow(/follow-ups/);
   });
 
   test("get gives NOT_FOUND for a malformed ID", async () => {

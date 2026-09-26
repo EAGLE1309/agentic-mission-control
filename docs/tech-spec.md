@@ -135,8 +135,10 @@ Each event has this envelope: `{ missionId, seq, at, type, nodeId?, payload }`. 
 |---|---|
 | `mission_created` | `goal`, `modelProfile`, `mode` |
 | `mission_status` | `status` |
-| `plan_created` | `title`, `rationale`, `nodes[]` (`id`, `role`, `title`, `instructions`, `dependsOn`) |
+| `plan_created` | `title`, `rationale`, `nodes[]` (`id`, `role`, `title`, `instructions`, `dependsOn`), `saveTo?` (`app`, `target?`) |
 | `nodes_added` | `nodes[]`, `reason` (`revision`, `replan`, `user_branch`) |
+| `nodes_reset` | `nodes[]` (`id`, `instructions?`): a follow-up runs these tasks again |
+| `save_requested` | `app`, `target?`: a follow-up saves the report to an app |
 | `node_queued` | `reason`, `retryAfterMs?` |
 | `node_started` | `attempt`, `model` |
 | `thought` | `step`, `text` (the text of one finished model step) |
@@ -159,12 +161,13 @@ Each event has this envelope: `{ missionId, seq, at, type, nodeId?, payload }`. 
 
 The reducer and `appendEvents` use the same rules from `src/shared/plan.ts`. Thus the UI and the `nodes` table always agree.
 
-- **Reserved node IDs:** `orchestrator`, `assembler`, `critic`, `revision-{n}`. A plan must not use these IDs. Plan IDs must match `[a-z0-9-]{1,32}`.
+- **Reserved node IDs:** `orchestrator`, `assembler`, `critic`, `report`, `save`, `revision-{n}`. A plan must not use these IDs. Plan IDs must match `[a-z0-9-]{1,32}`.
 - **Edges:**
   - orchestrator → each root worker
   - each dependency → the node that needs it
   - each leaf worker → assembler
-  - latest deliverable → each revision node
+  - report → save node (when the plan or a follow-up saves the report to an app)
+  - report → each revision node (one for each follow-up turn)
 - **Tool satellites:** The first call to a tool on a node makes a satellite node `${nodeId}:${tool}`. Tool calls and tool results move as packets on the satellite edge.
 - **Critic (v2):** One critic node. Reviews move as packets from worker to critic. Verdicts move from critic to worker.
 
@@ -189,9 +192,14 @@ The reducer and `appendEvents` use the same rules from `src/shared/plan.ts`. Thu
    4. Run `finish`. It sets the final status and adds an Inbox item.
 3. **Ready nodes.** A node is ready when it is `pending` and all its dependencies are `done`, `failed`, or `killed`. If a dependency failed, the node runs with a note about the missing input. The mission then ends as `partial`.
 4. **Stop.** `missions.stop` sets `stopRequested` and cancels the workflow. Each running action checks this flag before each call. If the flag is true, the action stops.
-5. **Revision (FR-25).** The user can request a revision of a completed mission. The maximum is 3 revisions for each mission.
-   - The engine adds a `revision-{n}` node. The assembler writes the next deliverable version.
-   - Revisions do not use the daily quota or the mission budget. They go through the global rate limits.
+5. **Save (FR-25).** A plan can set `saveTo`. After the assembler, the save step sends the exact report to that app with `app_write`. A failed save keeps the report and marks the mission partial.
+6. **Follow-ups (FR-25).** After a mission completes, fails, or stops, the user writes in the chat. The maximum is 10 turns for each mission.
+   - `missions.followUp` adds a `revision-{n}` node for the turn, adds 40 model calls to the budget, and starts `followUpWorkflow`.
+   - The director (the orchestrator with `DIRECTOR_PROMPT`) reads the tasks with their status, errors, and outputs, the latest report, the saved copies, the apps, and the earlier turns. It returns a turn: `reply`, `rerun`, `add`, `report` (`keep`, `rewrite`, or `revise`), `reportInstruction`, and `saveTo`. The engine checks the turn and sends the errors back to the model, 2 times at most.
+   - A rerun also runs each task that depends on a rerun task (`rerunClosure`). Tasks that run make the report `rewrite`.
+   - The workflow then runs the waves, the assembler, and the save step. `closeTurn` gives the turn node a summary and completes the mission again.
+   - A Rerun button sends task IDs. Then no model runs for the director.
+   - The director and text edits do not use the budget. Tasks and rewrites do.
 
 ### 7.2 Models
 
@@ -261,7 +269,7 @@ Free models often have small context windows. Steps 3–5 keep the prompts small
 
 - The assembler merges the worker outputs into deliverable version 1. It removes duplicate sources.
 - If a worker failed, the report tells about the missing part.
-- In revision mode, the assembler gets the latest version and the user instruction. Then it writes the next version.
+- In a follow-up, `rewrite` merges the task outputs again with the instruction of the user. `revise` gets the latest version and the instruction, and edits the text. Both write the next version on the assembler node.
 
 ### 7.7 Simulated mode
 

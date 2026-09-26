@@ -1,6 +1,6 @@
 "use client";
 
-import { IconChevronRight, IconCircleX, IconClock, IconX } from "@tabler/icons-react";
+import { IconChevronRight, IconCircleX, IconClock, IconRefresh, IconX } from "@tabler/icons-react";
 import { memo, useEffect, useRef, type ReactNode } from "react";
 import { AgentChip } from "@/components/agent-chip";
 import { AppMark } from "@/components/app-mark";
@@ -19,8 +19,14 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import { useSendFollowUp } from "@/features/mission-stream/follow-up-composer";
 import { toolCallApp, toolInputSummary } from "@/features/mission-stream/tool-summary";
+import { useMissionStatus } from "@/features/run/mission-meta";
 import { useRun } from "@/features/run/store";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { isMissionActive } from "@/shared/events";
+import { SAVE_ID, isWorkerRole } from "@/shared/plan";
 import { useNow } from "@/hooks/use-now";
 import { formatClock, formatDuration, formatLatency, formatTokens, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -60,6 +66,7 @@ export function TraceContent({ nodeId, onClose, focusTitle }: { nodeId: string; 
           <StatusBadge status={nodeStatusKind(node.status)} />
           <AgentChip role={node.role} />
           {node.attempt > 0 && <span>· attempt {node.attempt}</span>}
+          <RerunButton node={node} />
         </div>
         {node.model && (
           <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground" title={node.model}>
@@ -98,6 +105,30 @@ export function TraceContent({ nodeId, onClose, focusTitle }: { nodeId: string; 
 
       <TraceFooter node={node} />
     </div>
+  );
+}
+
+/**
+ * Run one task again (FR-25), with the tasks that depend on it, then a new
+ * report version. Only after the mission or the last follow-up ended.
+ */
+function RerunButton({ node }: { node: MissionNode }) {
+  const { status } = useMissionStatus();
+  const { send, pending } = useSendFollowUp();
+  if (!isWorkerRole(node.role) || node.id === SAVE_ID || isMissionActive(status)) return null;
+  const retry = node.status === "failed" || node.status === "killed";
+  const label = retry ? "Retry" : "Rerun";
+  return (
+    <Button
+      variant={retry ? "default" : "outline"}
+      size="xs"
+      disabled={pending}
+      onClick={() => void send(`${label} “${node.title}”.`, [node.id])}
+      className="ml-auto transition-[background-color,scale] duration-150 ease-out active:scale-[0.97]"
+    >
+      {pending ? <Spinner aria-hidden data-icon="inline-start" /> : <IconRefresh aria-hidden data-icon="inline-start" />}
+      {label}
+    </Button>
   );
 }
 

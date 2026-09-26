@@ -74,6 +74,28 @@ describe("appendEvents", () => {
     expect(mission?.endedAt).toBeTypeOf("number");
   });
 
+  test("a follow-up resets task rows and records where to save the report", async () => {
+    const t = setup();
+    const missionId = await seedMission(t);
+    await t.mutation(internal.events.appendEvents, {
+      missionId,
+      events: [
+        created,
+        plan,
+        { type: "mission_status", payload: { status: "running" } },
+        { type: "node_failed", nodeId: "pricing", payload: { error: "Boom", retryable: false, attempt: 1 } },
+        { type: "nodes_reset", payload: { nodes: [{ id: "pricing", instructions: "Find enterprise prices." }, { id: "compare" }] } },
+        { type: "save_requested", payload: { app: "notion", target: "Research" } },
+      ],
+    });
+    const nodes = await t.run((ctx) => ctx.db.query("nodes").collect());
+    const pricing = nodes.find((node) => node.nodeId === "pricing");
+    expect(pricing).toMatchObject({ status: "pending", instructions: "Find enterprise prices." });
+    expect(pricing?.error).toBeUndefined();
+    const mission = await t.run((ctx) => ctx.db.get("missions", missionId));
+    expect(mission?.saveTo).toEqual({ app: "notion", target: "Research" });
+  });
+
   test("drops task events that arrive after the mission ended", async () => {
     const t = setup();
     const missionId = await seedMission(t);

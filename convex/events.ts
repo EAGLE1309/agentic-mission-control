@@ -93,6 +93,23 @@ export async function appendEventsTx(
         for (const node of event.payload.nodes) await insertNode(node);
         break;
       }
+      case "nodes_reset": {
+        for (const reset of event.payload.nodes) {
+          const row = await loadNode(reset.id);
+          if (!row || row.role === "revision") continue;
+          await patchNode(row, {
+            status: "pending",
+            error: undefined,
+            summary: undefined,
+            ...(reset.instructions ? { instructions: reset.instructions } : {}),
+          });
+        }
+        break;
+      }
+      case "save_requested": {
+        patch.saveTo = event.payload;
+        break;
+      }
       case "llm_usage": {
         stats.calls += 1;
         stats.tokens += event.payload.inputTokens + event.payload.outputTokens;
