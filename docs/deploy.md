@@ -154,8 +154,9 @@ Email and password sign-in needs no more setup. A provider button shows only whe
 1. In Vercel, open **Settings → Domains** and add the domain.
 2. Set `SITE_URL` on prod to the new origin.
 3. Update the GitHub and Google callback URLs.
+4. In Vercel, add the environment variable `NEXT_PUBLIC_SITE_URL` with the new origin (Production), then redeploy.
 
-You do not need to rebuild. The web app does not build the site URL into its code.
+Steps 1–3 need no rebuild. Step 4 needs one: the canonical URLs, share links, `robots.txt`, and `sitemap.xml` (src/lib/site.ts) are built into the pages. Without it, they use the Vercel production domain.
 
 ## Roll back
 

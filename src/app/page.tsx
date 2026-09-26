@@ -1,5 +1,6 @@
 import { IconArrowRight, IconDeviceFloppy, IconPencil, IconPlus, IconRefresh, IconTemplate } from "@tabler/icons-react";
 import { getSessionCookie } from "better-auth/cookies";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Mark } from "@/components/mark";
@@ -12,10 +13,16 @@ import { FollowUpIllustration, TraceIllustration } from "@/features/landing/illu
 import { LandingDemo } from "@/features/landing/landing-demo";
 import { Reveal } from "@/features/landing/reveal";
 import { DEFAULT_APP_PATH } from "@/lib/safe-next";
+import { SITE_TITLE } from "@/lib/site";
 import { TEMPLATES } from "@/shared/templates";
 
 // Landing (FR-1, design §6.12). The hero blurs in once on load; a few blocks
 // blur in once as they scroll into view. The recorded demo is the hero.
+
+export const metadata: Metadata = {
+  title: { absolute: SITE_TITLE },
+  alternates: { canonical: "/" },
+};
 
 const NAV = [
   { href: "#how-it-works", label: "How it works" },
